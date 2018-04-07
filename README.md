@@ -6,6 +6,13 @@ These scripts are intended to be used alongside the horus FSK/RTTY decoder from 
 ## Dependencies
 * TODO: horus_api CLI utility compilation instructions here.
 
+### Python Library Dependencies
+The following Python packages are required:
+* `crcmod`
+* `requests`
+
+These can be installed using pip. e.g. `sudo pip install crcmod requests`
+
 ## Example Usage
 * TODO: Example usage.
 * `nc -l -u localhost 7355 | ./horus_api | python horusbinary.py MYCALL`
