@@ -22,6 +22,7 @@
 import argparse
 import crcmod
 import datetime
+import json
 import logging
 import os
 import Queue
@@ -70,8 +71,38 @@ class HabitatUploader(object):
 
     def habitat_upload(self, sentence):
         ''' Upload a UKHAS-standard telemetry sentence to Habitat '''
-        # TODO
-        logging.info("Uploaded sentence to Habitat successfully")
+
+        # Generate payload to be uploaded
+        _sentence_b64 = b64encode(sentence)
+        _date = datetime.datetime.utcnow().isoformat("T") + "Z"
+        _user_call = self.user_callsign
+
+        _data = {
+            "type": "payload_telemetry",
+            "data": {
+                "_raw": _sentence_b64
+                },
+            "receivers": {
+                _user_call: {
+                    "time_created": _date,
+                    "time_uploaded": _date,
+                    },
+                },
+        }
+
+        # The URl to upload to.
+        _url = "http://habitat.habhub.org/habitat/_design/payload_telemetry/_update/add_listener/%s" % sha256(_sentence_b64).hexdigest()
+
+        # Run the request.
+        _req = requests.put(_url, data=json.dumps(_data), timeout=self.upload_timeout)
+
+        if _req.status_code == 201:
+            logging.info("Uploaded sentence to Habitat successfully")
+        elif _req.status_code == 403:
+            logging.info("Sentence uploaded to Habitat, but already present in database.")
+        else:
+            logging.error("Error uploading to Habitat. Status Code: %d" % _req.status_code)
+
         return
 
 
@@ -239,7 +270,7 @@ def ozimux_upload(sentence, udp_port=55683):
 #
 def decode_horus_binary(data):
     ''' Decode a string containing a horus binary packet, and produce a UKHAS ASCII string '''
-    
+
     # TODO
 
     return None
@@ -250,7 +281,7 @@ def handle_ukhas(data):
     ''' Handle a line of UKHAS-standard ASCII Telemetry '''
     global habitat_uploader
 
-    logging.debug("ASCII Sentence: %s" % data)
+    logging.info("ASCII Sentence: %s" % data)
 
     # Emit OziMux telemetry
     ozimux_upload(data)
@@ -267,7 +298,7 @@ def handle_ukhas(data):
 def handle_binary(data, payload_call = 'HORUSBINARY'):
     '''  Handle a line of binary telemetry, provided as hexadecimal. '''
     global habitat_uploader
-    logging.debug("Hexadecimal Sentence: %s" % data)
+    logging.info("Hexadecimal Sentence: %s" % data)
 
     # Attempt to parse the line of data as hexadecimal.
     try:
@@ -298,7 +329,7 @@ def main():
     ''' Main Function '''
     global habitat_uploader
     # Set up logging
-    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
 
     # Read command-line arguments
     parser = argparse.ArgumentParser(description="Project Horus Binary/RTTY Telemetry Handler", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
