@@ -142,7 +142,7 @@ class HabitatUploader(object):
         if sentence.startswith('$$') == False:
             sentence = '$$' + sentence
 
-        if sentence[-1] is not '\n':
+        if not (sentence[-1] == '\n'):
             sentence += '\n'
 
         try:
@@ -235,7 +235,6 @@ def ozimux_upload(sentence, udp_port=55683):
         _altitude = int(_fields[5])
         # The rest we don't care about.
 
-
         # Perform some sanity checks on the data.
 
         # Attempt to parse the time string. This will throw an error if any values are invalid.
@@ -268,12 +267,80 @@ def ozimux_upload(sentence, udp_port=55683):
 #
 # Binary Packet Decoder
 #
-def decode_horus_binary(data):
+
+# Binary Packet Format:
+# Refer https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L72
+# struct TBinaryPacket
+# {
+# uint8_t   PayloadID;
+# uint16_t  Counter;
+# uint8_t   Hours;
+# uint8_t   Minutes;
+# uint8_t   Seconds;
+# float   Latitude;
+# float   Longitude;
+# uint16_t    Altitude;
+# uint8_t   Speed; // Speed in Knots (1-255 knots)
+# uint8_t   Sats;
+# int8_t   Temp; // Twos Complement Temp value.
+# uint8_t   BattVoltage; // 0 = 0v, 255 = 5.0V, linear steps in-between.
+# uint16_t Checksum; // CRC16-CCITT Checksum.
+# };
+def decode_horus_binary(data, payload_call = 'HORUSBINARY'):
     ''' Decode a string containing a horus binary packet, and produce a UKHAS ASCII string '''
 
-    # TODO
+    horus_format_struct = "<BHBBBffHBBbBH"
+    # Attempt to unpack the input data into a struct.
+    try:
+        unpacked = struct.unpack(horus_format_struct, data)
+    except Exception as e:
+        logging.error("Error parsing binary telemetry - %s" % str(e))
+        return None
 
-    return None
+
+    telemetry = {}
+    telemetry['payload_id'] = unpacked[0]
+    telemetry['counter'] = unpacked[1]
+    telemetry['time'] = "%02d:%02d:%02d" % (unpacked[2],unpacked[3],unpacked[4])
+    telemetry['latitude'] = unpacked[5]
+    telemetry['longitude'] = unpacked[6]
+    telemetry['altitude'] = unpacked[7]
+    telemetry['speed'] = unpacked[8]
+    telemetry['sats'] = unpacked[9]
+    telemetry['temp'] = unpacked[10]
+    telemetry['batt_voltage_raw'] = unpacked[11]
+    telemetry['checksum'] = unpacked[12]
+
+    # Validate the checksum.
+    _crc16 = crcmod.predefined.mkCrcFun('crc-ccitt-false')
+    _calculated_crc = _crc16(data[:-2])
+
+    if _calculated_crc != telemetry['checksum']:
+        logging.error("Checksum Mismatch - RX: %s, Calculated: %s" % (hex(telemetry['checksum']), hex(_calculated_crc)))
+        return None
+
+    # Convert some of the fields into more useful units.
+    telemetry['batt_voltage'] = 5.0*telemetry['batt_voltage_raw']/255.0
+
+    # Generate the UKHAS ASCII sentence 
+    _sentence = "$$%s,%d,%s,%.5f,%.5f,%d,%d,%d,%d,%.2f" % (
+        payload_call,
+        telemetry['counter'],
+        telemetry['time'],
+        telemetry['latitude'],
+        telemetry['longitude'],
+        telemetry['altitude'],
+        telemetry['speed'],
+        telemetry['sats'],
+        telemetry['temp'],
+        telemetry['batt_voltage'])
+    # Append checksum
+    _checksum = crc16_ccitt(_sentence[2:])
+    _output = _sentence + "*" + _checksum + "\n"
+
+    logging.info("Decoded Binary Telemetry as: %s" % _output.strip())
+
+    return _output
 
 
 
@@ -308,7 +375,7 @@ def handle_binary(data, payload_call = 'HORUSBINARY'):
         return
 
     # Attempt to decode the line as binary telemetry.
-    _decoded_sentence = decode_horus_binary(_binary_string)
+    _decoded_sentence = decode_horus_binary(_binary_string, payload_call)
 
     # If the decode succeeds, upload it
     if _decoded_sentence is not None:
@@ -317,7 +384,7 @@ def handle_binary(data, payload_call = 'HORUSBINARY'):
 
         # Upload data via Habitat
         if habitat_uploader is not None:
-            habitat_uploader.add(data)
+            habitat_uploader.add(_decoded_sentence)
         else:
             logging.error("Habitat Uploader has not been initialized.")
 
