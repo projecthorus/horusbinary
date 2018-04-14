@@ -1,11 +1,9 @@
-# Project Horus's Binary Telemetry System
+# Project Horus's Low-Speed Binary Telemetry System
 This repository contains documentation and scripts to work with the new `horus_demod` MFSK/RTTY demodulator, developed by [David Rowe](http://rowetel.com). Currently this demodulator provides ~2.5dB better RTTY decode performance than dl-fldigi 3.21.50, and ~0.5dB better performance than fldigi 4.0.1. 
 
 It also adds support for a binary-packet 4FSK mode, designed specifically for high-altitude balloon telemetry, and which is intended to supercede RTTY for all Project Horus launches. Preliminary testing shows it has ~6dB improved demodulation performance over RTTY at the same baud rate.
 
 Currently we are developing the modem under Linux & OSX, with the eventual aim to produce a cross-platform GUI. For now, the demodulator is available as a command-line utility, with additional binary packet processing and uploading of data to Habitat performed by the `horusbinary.py` python script.
-
-Windows is not supported for the command-line demodulator.
 
 ## Modes Supported
 The `horus_demod` modem (located within the codec2-dev repo) is in very early development, and currently only supports:
@@ -28,7 +26,7 @@ Horus Binary packets take the form:
 ```
 <preamble><unique word><payload>
 where
-<preamble> = 0x1B1B1B1B1B
+<preamble> = 0x1B1B1B1B
 <unique word> = 0x2424
 ```
 The payload consists of a 22-byte long binary packet, encoded with a Golay (23,12) code, and then interleaved and scrambled, for a total encoded length of 43 bytes. The binary packet format is [available here](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L75), and the golay-encoding/interleaving/scrambling is performed by [horus_l2_encode_packet](https://github.com/darksidelemm/RS41HUP/blob/master/horus_l2.c#L117).

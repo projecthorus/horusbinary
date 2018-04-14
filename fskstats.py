@@ -89,11 +89,12 @@ def update_plots():
 	try:
 		if in_queue.empty():
 			return
-		in_data = in_queue.get_nowait()
-		in_data = json.loads(in_data)
+		in_data_raw = in_queue.get_nowait()
+		in_data = json.loads(in_data_raw)
 	except Exception as e:
 
 		sys.stderr.write(str(e))
+		sys.stderr.write(in_data_raw)
 		return
 
 	# Roll data arrays
@@ -217,7 +218,7 @@ def read_udp():
 if args.udp != -1:
 	read_thread = Thread(target=read_udp)
 else:
-	read_thread = Thread(target=read_input)
+	read_thread = Thread(target=read_stdin)
 read_thread.daemon = True # Set as daemon, so when all other threads die, this one gets killed too.
 read_thread.start()
 
