@@ -17,7 +17,7 @@
 #       * requests
 #
 #   Example Usage (SSB demod via GQRX, decoding using 'horus_api' from codec2-dev):
-#   $ nc -l -u localhost 7355 | ./horus_api <arguments> | python horusbinary.py --usercall=MYCALL 
+#   $ nc -l -u localhost 7355 | ./horus_demod <arguments> | python horusbinary.py --usercall=MYCALL 
 #
 import argparse
 import crcmod
@@ -56,13 +56,15 @@ class HabitatUploader(object):
 
     def __init__(self, user_callsign='FSK_DEMOD', 
                 queue_size=16,
-                upload_timeout = 10):
+                upload_timeout = 10,
+                inhibit = False):
         ''' Create a Habitat Uploader object. ''' 
 
         self.user_callsign = user_callsign
         self.upload_timeout = upload_timeout
         self.queue_size = queue_size
         self.habitat_upload_queue = Queue.Queue(queue_size)
+        self.inhibit = inhibit
 
         # Start the uploader thread.
         self.habitat_uploader_running = True
@@ -136,6 +138,10 @@ class HabitatUploader(object):
 
     def add(self, sentence):
         ''' Add a sentence to the upload queue '''
+
+        if self.inhibit:
+            # We have upload inhibited. Return.
+            return
 
         # Check the line has a '$$' header, and a trailing newline.
         # If not, add them.
@@ -400,13 +406,14 @@ def main():
 
     # Read command-line arguments
     parser = argparse.ArgumentParser(description="Project Horus Binary/RTTY Telemetry Handler", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("usercall", type=str, help="Habitat Uploader Callsign, i.e. N0CALL")
+    parser.add_argument("--mycall", type=str, default='HORUS_RX', help="Habitat Uploader Callsign, i.e. N0CALL")
     parser.add_argument("--payloadcall", type=str, default='HORUSBINARY', help="Payload Callsign, when converting binary telemetry to ASCII")
+    parser.add_argument("--noupload", action="store_true", default=False, help="Disable Habitat upload.")
     args = parser.parse_args()
 
 
     # Start the Habitat uploader thread.
-    habitat_uploader = HabitatUploader(user_callsign = args.usercall)
+    habitat_uploader = HabitatUploader(user_callsign = args.mycall, inhibit=args.noupload)
 
 
     # Main loop

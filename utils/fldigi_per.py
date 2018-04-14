@@ -35,7 +35,8 @@ from threading import Thread
 
 # Command to play back a wave file. %s is replaced with the filename.
 # This example uses sox to  play the wave-file into Soundflower (loopback audio under OSX)
-PLAY_CMD = "sox %s -t coreaudio \"Soundflower (2c\""
+#PLAY_CMD = "sox %s -t coreaudio \"Soundflower (2c\""
+PLAY_CMD = "sox -r 8000 -b 16 -e signed-integer %s -t coreaudio \"Soundflower (2c\""
 # Example for other platforms may be:
 #PLAY_CMD = "play %s"
 
@@ -252,6 +253,7 @@ if __name__ == "__main__":
                 time.sleep(1)
         else:
             # Play a list of files.
+            _out_str = ""
             for _file in _file_list:
                 packet_count = 0
 
@@ -261,9 +263,12 @@ if __name__ == "__main__":
                     print("FILE %s: %d Packets" % (_file, packet_count))
                 else:
                     _PER = float(packet_count)/float(args.expected)
-                    print("FILE %s: %d/%d Packets, PER=%.3f" % (_file, packet_count, args.expected, _PER))
+                    _per_str = "FILE %s: %d/%d Packets, PER=%.3f" % (_file, packet_count, args.expected, _PER)
+                    print(_per_str)
+                    _out_str += _per_str + '\n'
 
             _fldigi.close()
+            print(_out_str)
 
     except KeyboardInterrupt:
         _fldigi.close()
