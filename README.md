@@ -75,9 +75,9 @@ We can string these applications together in the command shell using 'pipes', as
 
 ### Demodulating from a Sound Card
 ```
-TODO
-<sound capture at 48000Hz, 16-bit signed int> | ./horus_demod -m RTTY - - | python horusbinary.py --mycall YOURCALLSIGN
+sox -d -r 48k -c 1 -t s16 - | ./horus_demod -m RTTY - - | python horusbinary.py --mycall YOURCALLSIGN
 ```
+The above command records from the default sound device.
 
 ### Demodulating using GQRX 
 This assumes you have GQRX installed (`sudo apt-get install gqrx`) and working, have set up a USB demodulator over the signal of interest, and have enabled the [UDP output option](http://gqrx.dk/doc/streaming-audio-over-udp) by clicking the UDP button at the bottom-right of the GQRX window.

@@ -143,10 +143,11 @@ class HabitatUploader(object):
             # We have upload inhibited. Return.
             return
 
-        # Check the line has a '$$' header, and a trailing newline.
-        # If not, add them.
-        if sentence.startswith('$$') == False:
-            sentence = '$$' + sentence
+        # Handling of arbitrary numbers of $$'s at the start of a sentence:
+        # Extract the data part of the sentence (i.e. everything after the $$'s')
+        sentence = sentence.split('$')[-1]
+        # Now add the *correct* number of $$s back on.
+        sentence = '$$' +sentence
 
         if not (sentence[-1] == '\n'):
             sentence += '\n'
