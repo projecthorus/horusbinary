@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import Queue
+import random
 import requests
 import socket
 import struct
@@ -57,11 +58,16 @@ class HabitatUploader(object):
     def __init__(self, user_callsign='FSK_DEMOD', 
                 queue_size=16,
                 upload_timeout = 10,
-                inhibit = False):
+                upload_retries = 5,
+                upload_retry_interval = 0.25,
+                inhibit = False,
+                ):
         ''' Create a Habitat Uploader object. ''' 
 
         self.user_callsign = user_callsign
         self.upload_timeout = upload_timeout
+        self.upload_retries = upload_retries
+        self.upload_retry_interval = upload_retry_interval
         self.queue_size = queue_size
         self.habitat_upload_queue = Queue.Queue(queue_size)
         self.inhibit = inhibit
@@ -95,15 +101,39 @@ class HabitatUploader(object):
         # The URl to upload to.
         _url = "http://habitat.habhub.org/habitat/_design/payload_telemetry/_update/add_listener/%s" % sha256(_sentence_b64).hexdigest()
 
-        # Run the request.
-        _req = requests.put(_url, data=json.dumps(_data), timeout=self.upload_timeout)
+        # Delay for a random amount of time between 0 and upload_retry_interval*2 seconds.
+        time.sleep(random.random()*self.upload_retry_interval*2.0)
 
-        if _req.status_code == 201:
-            logging.info("Uploaded sentence to Habitat successfully")
-        elif _req.status_code == 403:
-            logging.info("Sentence uploaded to Habitat, but already present in database.")
-        else:
-            logging.error("Error uploading to Habitat. Status Code: %d" % _req.status_code)
+        _retries = 0
+
+        # When uploading, we have three possible outcomes:
+        # - Can't connect. No point re-trying in this situation.
+        # - The packet is uploaded successfult (201 / 403)
+        # - There is a upload conflict on the Habitat DB end (409). We can retry and it might work.
+        while _retries < self.upload_retries:
+            # Run the request.
+            try:
+                _req = requests.put(_url, data=json.dumps(_data), timeout=self.upload_timeout)
+            except Exception as e:
+                logging.error("Habitat - Upload Failed: %s" % str(e))
+                break
+
+            if _req.status_code == 201 or _req.status_code == 403:
+                # 201 = Success, 403 = Success, sentence has already seen by others.
+                logging.info("Habitat - Uploaded sentence to Habitat successfully")
+                _upload_success = True
+                break
+            elif _req.status_code == 409:
+                # 409 = Upload conflict (server busy). Sleep for a moment, then retry.
+                logging.debug("Habitat - Upload conflict.. retrying.")
+                time.sleep(random.random()*self.upload_retry_interval)
+                _retries += 1
+            else:
+                logging.error("Habitat - Error uploading to Habitat. Status Code: %d." % _req.status_code)
+                break
+
+        if _retries == self.upload_retries:
+            logging.error("Habitat - Upload conflict not resolved with %d retries." % self.upload_retries)
 
         return
 
