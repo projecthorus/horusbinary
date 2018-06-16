@@ -95,5 +95,5 @@ TBD: Instructions to setup FreeDV into Horus Telemetry mode.
 In this mode, the received telemetry is output via UDP packets, sent to localhost at port 55690. To receive and upload these packets into Habitat, we can run the horusbinary.py python script in a similar manner as above, but with the --udp=55690 option to listen via UDP instead of stdin.
 
 ```
-$ python horusbinary --udp 55690 --mycall YOURCALLSIGN
+$ python horusbinary.py --udp 55690 --mycall YOURCALLSIGN
 ```
