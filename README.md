@@ -64,7 +64,7 @@ Note that we do not build all the binaries within codec2-dev, just the one we ne
 
 TODO: Bring the necessary source code into this repository, to avoid needing to checkout all of codec2-dev.
 
-## Usage
+## Usage - Horus Demod
 The `horus_demod` binary accepts 48khz 16-bit signed-integer samples via stdin, and can decode either RTTY or the MFSK (binary) packets. Successfuly decoded packets are output via stdout, and debug information is provided via stderr.
 
 Suitable audio inputs could be from a sound card input, or from a SDR receiver application such as [GQRX](http://gqrx.dk/).
@@ -75,7 +75,7 @@ We can string these applications together in the command shell using 'pipes', as
 
 ### Demodulating from a Sound Card
 ```
-sox -d -r 48k -c 1 -t s16 - | ./horus_demod -m RTTY - - | python horusbinary.py --mycall YOURCALLSIGN
+$ sox -d -r 48k -c 1 -t s16 - | ./horus_demod -m binary - - | python horusbinary.py --mycall YOURCALLSIGN
 ```
 The above command records from the default sound device.
 
@@ -83,7 +83,17 @@ The above command records from the default sound device.
 This assumes you have GQRX installed (`sudo apt-get install gqrx`) and working, have set up a USB demodulator over the signal of interest, and have enabled the [UDP output option](http://gqrx.dk/doc/streaming-audio-over-udp) by clicking the UDP button at the bottom-right of the GQRX window.
 
 ```
-nc -l -u localhost 7355 | ./horus_demod -m RTTY - - | python horusbinary.py --mycall YOURCALLSIGN
+$ nc -l -u localhost 7355 | ./horus_demod -m binary - - | python horusbinary.py --mycall YOURCALLSIGN
 ```
-Replace `RTTY` in the above command with `binary` to demodulate 4FSK binary telemetry.
+Replace `binary` in the above command with `RTTY` to demodulate RTTY telemetry.
 
+## Usage - Via FreeDV
+David Rowe has kindly included support for the Horus Binary modem into the [FreeDV](http://freedv.org/) application.
+
+TBD: Instructions to setup FreeDV into Horus Telemetry mode.
+
+In this mode, the received telemetry is output via UDP packets, sent to localhost at port 55690. To receive and upload these packets into Habitat, we can run the horusbinary.py python script in a similar manner as above, but with the --udp=55690 option to listen via UDP instead of stdin.
+
+```
+$ python horusbinary --udp 55690 --mycall YOURCALLSIGN
+```

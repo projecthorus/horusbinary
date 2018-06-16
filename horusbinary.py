@@ -32,6 +32,7 @@ import socket
 import struct
 import sys
 import time
+import traceback
 from threading import Thread
 from base64 import b64encode
 from hashlib import sha256
@@ -39,6 +40,9 @@ from hashlib import sha256
 
 # Global variables, instantiated in main()
 habitat_uploader = None
+
+# OziMux Telemetry output port
+ozi_port = 55683
 
 #
 # Habitat Uploader Class
@@ -184,8 +188,6 @@ class HabitatUploader(object):
 
         try:
             self.habitat_upload_queue.put_nowait(sentence)
-        except Queue.Full:
-            logging.error("Upload Queue is full, sentence discarded.")
         except Exception as e:
             logging.error("Error adding sentence to queue: %s" % str(e))
 
@@ -213,10 +215,11 @@ def crc16_ccitt(data):
 # OziMux UDP Packet Generation Functions
 #
 
-def oziplotter_upload_basic_telemetry(time, latitude, longitude, altitude, udp_port=55683):
+def oziplotter_upload_basic_telemetry(time, latitude, longitude, altitude):
     """
     Send a sentence of position data to Oziplotter/OziMux, via UDP.
     """
+    global ozi_port
     sentence = "TELEMETRY,%s,%.5f,%.5f,%d\n" % (time, latitude, longitude, altitude)
 
     try:
@@ -231,15 +234,15 @@ def oziplotter_upload_basic_telemetry(time, latitude, longitude, altitude, udp_p
         except:
             pass
         # Send!
-        _ozisock.sendto(sentence,('<broadcast>',udp_port))
+        _ozisock.sendto(sentence,('<broadcast>',ozi_port))
         _ozisock.close()
-        logging.debug("Send Telemetry to OziMux (%d): %s" % (udp_port, sentence.strip()))
+        logging.debug("Send Telemetry to OziMux (%d): %s" % (ozi_port, sentence.strip()))
         return sentence
     except Exception as e:
         logging.error("Failed to send OziMux packet: %s" % str(e))
 
 
-def ozimux_upload(sentence, udp_port=55683):
+def ozimux_upload(sentence):
     ''' Attempt to parse a supplied sentence and emit it as a OziMux-compatible UDP sentence '''
 
     # Try and proceed through the following. If anything fails, we have a corrupt sentence.
@@ -292,7 +295,7 @@ def ozimux_upload(sentence, udp_port=55683):
             return
 
         # We are now pretty sure we have valid data - upload the sentence.
-        oziplotter_upload_basic_telemetry(_time, _latitude, _longitude, _altitude, udp_port=udp_port)
+        oziplotter_upload_basic_telemetry(_time, _latitude, _longitude, _altitude)
         return
 
     except Exception as e:
@@ -431,7 +434,7 @@ def handle_binary(data, payload_call = 'HORUSBINARY'):
 
 def main():
     ''' Main Function '''
-    global habitat_uploader
+    global habitat_uploader, ozi_port
     # Set up logging
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
 
@@ -440,20 +443,58 @@ def main():
     parser.add_argument("--mycall", type=str, default='HORUS_RX', help="Habitat Uploader Callsign, i.e. N0CALL")
     parser.add_argument("--payloadcall", type=str, default='HORUSBINARY', help="Payload Callsign, when converting binary telemetry to ASCII")
     parser.add_argument("--noupload", action="store_true", default=False, help="Disable Habitat upload.")
+    parser.add_argument("--ozi_port", default=55683, type=int, help="OziMux Telemetry Output UDP Broadcast Port. Default=55683")
+    parser.add_argument("--udp", default=0, type=int, help="Listen for data via supplied UDP port instead of stdin. FreeDV outputs data on 55690.")
     args = parser.parse_args()
 
 
     # Start the Habitat uploader thread.
     habitat_uploader = HabitatUploader(user_callsign = args.mycall, inhibit=args.noupload)
 
+    # Set OziMux output port
+    ozi_port = args.ozi_port
 
+    if args.udp != 0:
+        # Start up a UDP listener.
+        s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        s.settimeout(1)
+        # Set up the socket for address re-use.
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # On BSD systems we have to do a bit extra.
+        try:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except:
+            pass
+        s.bind(('127.0.0.1',args.udp))
+        logging.info("Opened UDP socket on port %d." % args.udp)
+
+
+    logging.info("Started Horus Binary Uploader. Hit CTRL-C to exit.")
     # Main loop
     try:
         while True:
             # Read lines in from stdin, and strip off any trailing newlines
-            data = sys.stdin.readline()
+            if args.udp != 0:
+                try:
+                    data = s.recvfrom(1024)
+                except socket.timeout:
+                    logging.debug("UDP Socket Timeout.")
+                    data = None
+                except KeyboardInterrupt:
+                    break
+                except:
+                    traceback.print_exc()
+                    data = None
 
-            if data == '':
+                if data != None:
+                    data = data[0]
+                else:
+                    continue
+
+            else:   
+                data = sys.stdin.readline()
+
+            if (args.udp == 0) and (data == ''):
                 # Empty line means stdin has been closed.
                 logging.info("Caught EOF, exiting.")
                 break
