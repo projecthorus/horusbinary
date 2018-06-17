@@ -535,7 +535,7 @@ def main():
             else:   
                 data = sys.stdin.readline()
 
-            if (args.udp == 0) and (data == ''):
+            if (args.stdin == False) and (data == ''):
                 # Empty line means stdin has been closed.
                 logging.info("Caught EOF, exiting.")
                 break
