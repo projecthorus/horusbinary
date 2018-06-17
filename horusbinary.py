@@ -25,6 +25,7 @@ import datetime
 import json
 import logging
 import os
+import pprint
 import Queue
 import random
 import requests
@@ -36,6 +37,13 @@ import traceback
 from threading import Thread
 from base64 import b64encode
 from hashlib import sha256
+
+try:
+    # Python 2
+    from ConfigParser import RawConfigParser
+except ImportError:
+    # Python 3
+    from configparser import RawConfigParser
 
 
 # Global variables, instantiated in main()
@@ -236,7 +244,7 @@ def oziplotter_upload_basic_telemetry(time, latitude, longitude, altitude):
         # Send!
         _ozisock.sendto(sentence,('<broadcast>',ozi_port))
         _ozisock.close()
-        logging.debug("Send Telemetry to OziMux (%d): %s" % (ozi_port, sentence.strip()))
+        logging.debug("Sent Telemetry to OziMux (%d): %s" % (ozi_port, sentence.strip()))
         return sentence
     except Exception as e:
         logging.error("Failed to send OziMux packet: %s" % str(e))
@@ -429,7 +437,30 @@ def handle_binary(data, payload_call = 'HORUSBINARY'):
             logging.error("Habitat Uploader has not been initialized.")
 
 
+def read_config(filename):
+    ''' Read in the user configuation file.'''
+    user_config = {
+        'user_call' : 'HORUS_RX',
+        'payload_call' : 'HORUSBINARY',
+        'freedv_udp_port' : 55690,
+        'ozi_udp_port' : 55683
+    }
 
+    try:
+        config = RawConfigParser()
+        config.read(filename)
+
+        user_config['user_call'] = config.get('user', 'callsign')
+        user_config['payload_call'] = config.get('payload', 'payload_callsign')
+        user_config['freedv_udp_port'] = config.getint('freedv', 'udp_port')
+        user_config['ozi_udp_port'] = config.getint('ozimux', 'ozimux_port')
+
+        return user_config
+
+    except:
+        traceback.print_exc()
+        logging.error("Could not parse config file.")
+        return None
 
 
 def main():
@@ -440,21 +471,28 @@ def main():
 
     # Read command-line arguments
     parser = argparse.ArgumentParser(description="Project Horus Binary/RTTY Telemetry Handler", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--mycall", type=str, default='HORUS_RX', help="Habitat Uploader Callsign, i.e. N0CALL")
-    parser.add_argument("--payloadcall", type=str, default='HORUSBINARY', help="Payload Callsign, when converting binary telemetry to ASCII")
+    parser.add_argument('-c', '--config', type=str, default='user.cfg', help="Configuration file to use. Default: user.cfg")
     parser.add_argument("--noupload", action="store_true", default=False, help="Disable Habitat upload.")
-    parser.add_argument("--ozi_port", default=55683, type=int, help="OziMux Telemetry Output UDP Broadcast Port. Default=55683")
-    parser.add_argument("--udp", default=0, type=int, help="Listen for data via supplied UDP port instead of stdin. FreeDV outputs data on 55690.")
+    parser.add_argument("--stdin", action="store_true", default=False, help="Listen for data on stdin instead of via UDP.")
     args = parser.parse_args()
 
+    # Read in the configuration file.
+    user_config = read_config(args.config)
+
+    # If we could not read the configuration file, exit.
+    if user_config == None:
+        return
+    else:
+        logging.info("Using User Callsign: %s" % user_config['user_call'])
+        logging.info("Using Payload Callsign: %s" % user_config['payload_call'])
 
     # Start the Habitat uploader thread.
-    habitat_uploader = HabitatUploader(user_callsign = args.mycall, inhibit=args.noupload)
+    habitat_uploader = HabitatUploader(user_callsign = user_config['user_call'], inhibit=args.noupload)
 
     # Set OziMux output port
-    ozi_port = args.ozi_port
+    ozi_port = user_config['ozi_udp_port']
 
-    if args.udp != 0:
+    if args.stdin == False:
         # Start up a UDP listener.
         s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
         s.settimeout(1)
@@ -465,8 +503,11 @@ def main():
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         except:
             pass
-        s.bind(('127.0.0.1',args.udp))
-        logging.info("Opened UDP socket on port %d." % args.udp)
+        s.bind(('127.0.0.1',user_config['freedv_udp_port']))
+        logging.info("Opened UDP socket on port %d." % user_config['freedv_udp_port'])
+
+    else:
+        logging.info("Waiting for data on stdin.")
 
 
     logging.info("Started Horus Binary Uploader. Hit CTRL-C to exit.")
@@ -474,7 +515,7 @@ def main():
     try:
         while True:
             # Read lines in from stdin, and strip off any trailing newlines
-            if args.udp != 0:
+            if args.stdin == False:
                 try:
                     data = s.recvfrom(1024)
                 except socket.timeout:
@@ -507,7 +548,7 @@ def main():
             if data.startswith('$$'):
                 handle_ukhas(data)
             else:
-                handle_binary(data, args.payloadcall)
+                handle_binary(data, user_config['payload_call'])
 
     except KeyboardInterrupt:
         logging.info("Caught CTRL-C, exiting.")
