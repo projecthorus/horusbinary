@@ -5,7 +5,7 @@ It also adds support for a binary-packet 4FSK mode, designed specifically for hi
 
 Currently we are developing the modem under Linux & OSX, with the eventual aim to produce a cross-platform GUI. For now, the demodulator is available as a command-line utility, with additional binary packet processing and uploading of data to Habitat performed by the `horusbinary.py` python script.
 
-These modems have recently been added to the [FreeDV GUI](http://freedv.org), to allow easier usage.
+These modems have recently been added to the [FreeDV GUI](http://freedv.org), to allow easier usage. Refer to this guide for instructions on using FreeDV to decode Horus Binary telemetry: https://github.com/projecthorus/horusbinary/wiki/FreeDV---HorusBinary-Setup-&-Usage-Instructions
 
 ## Modes Supported
 The `horus_demod` modem (located within the codec2-dev repo) is in early development, and currently only supports:
