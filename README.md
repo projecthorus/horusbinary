@@ -56,7 +56,7 @@ To be able to use the horusbinary.py Python script, you will need a Python inter
 ### Linux / OSX
 Under Linux (Ubuntu/Debian) install the required packages using:
 ```
-$ sudo apt-get install git python-numpy python-pyqtgraph python-crcmod python-requests python-pip
+$ sudo apt-get install git python-numpy python-pyqtgraph python-crcmod python-requests python-pip sox
 ```
 Under OSX, Macports or Homebrew should be able to provide the above packages.
 
