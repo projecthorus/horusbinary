@@ -121,27 +121,9 @@ callsign = YOUR_CALL_HERE
 Leave the other options in the configuration file at their defaults.
 
 ## Receiving Using FreeDV
-**NOTE: Horus Binary support in FreeDV is still under development.**
-FreeDV now has the Horus Binary MFSK modem included. Download and install FreeDV from http://freedv.org/.
+**NOTE: Horus Binary support in FreeDV is still in development.**
 
-Once installed, start up FreeDV and:
-* In `Tools -> Audio Config`, go to the 'Receive' tab, and set the 'From Radio' sound card as appropriate (i.e. the one which the modem signal will be received on, from your radio output). Set the 'To Speakers/Headphones' to your default sound card output. (TODO: How to mute the audio?).
-* In `Tools -> Audio Config`, go to the 'Transmit' tab, and set both the 'From Microphone' and 'To Radio' devices to 'none'.
-* In `Tools -> Options`, tick 'Enable UDP Messages', and set the UDP port to 55690.
-
-You should now be able to select 'HorusB' (Horus Binary) from the mode list at the right of the main FreeDV window, and click Start to see a waterfall display.
-
-Run `horusbinary.py` either from a terminal/command prompt, or by double-clicking the python file. You should see the following:
-```
-$ python horusbinary.py
-2018-06-17 16:18:27,477 INFO: Using User Callsign: YOUR_CALL_HERE
-2018-06-17 16:18:27,477 INFO: Using Payload Callsign: HORUSBINARY
-2018-06-17 16:18:27,477 INFO: Started Habitat Uploader Thread.
-2018-06-17 16:18:27,477 INFO: Opened UDP socket on port 55690.
-2018-06-17 16:18:27,478 INFO: Started Horus Binary Uploader. Hit CTRL-C to exit.
-```
-This will be followed by telemetry data as it is received. Telemetry will be automatically uploaded to the Habitat database, and will be visible on http://tracker.habhub.org/ 
-
+Instructions on decoding Horus Binary telemetry using FreeDV are available here: https://github.com/projecthorus/horusbinary/wiki/FreeDV---HorusBinary-Setup-&-Usage-Instructions
 
 ## Usage - Horus Demod
 The `horus_demod` binary accepts 48khz 16-bit signed-integer samples via stdin, and can decode either RTTY or the MFSK (binary) packets. Successfuly decoded packets are output via stdout, and debug information is provided via stderr.
