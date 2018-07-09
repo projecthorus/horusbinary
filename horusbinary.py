@@ -52,6 +52,8 @@ habitat_uploader = None
 # OziMux Telemetry output port
 ozi_port = 55683
 
+# Log file object
+log_file = None
 #
 # Habitat Uploader Class
 #
@@ -412,7 +414,7 @@ def handle_ukhas(data):
 
 def handle_binary(data, payload_call = 'HORUSBINARY'):
     '''  Handle a line of binary telemetry, provided as hexadecimal. '''
-    global habitat_uploader
+    global habitat_uploader, log_file
     logging.info("Hexadecimal Sentence: %s" % data)
 
     # Attempt to parse the line of data as hexadecimal.
@@ -429,6 +431,11 @@ def handle_binary(data, payload_call = 'HORUSBINARY'):
     if _decoded_sentence is not None:
         # Emit OziMux telemetry
         ozimux_upload(_decoded_sentence)
+
+        # Write out to the log tile
+        if log_file != None:
+            log_file.write(_decoded_sentence.encode('ascii'))
+            log_file.flush()
 
         # Upload data via Habitat
         if habitat_uploader is not None:
@@ -465,7 +472,7 @@ def read_config(filename):
 
 def main():
     ''' Main Function '''
-    global habitat_uploader, ozi_port
+    global habitat_uploader, ozi_port, log_file
     # Set up logging
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
 
@@ -474,6 +481,7 @@ def main():
     parser.add_argument('-c', '--config', type=str, default='user.cfg', help="Configuration file to use. Default: user.cfg")
     parser.add_argument("--noupload", action="store_true", default=False, help="Disable Habitat upload.")
     parser.add_argument("--stdin", action="store_true", default=False, help="Listen for data on stdin instead of via UDP.")
+    parser.add_argument("--log", type=str, default="telemetry.log", help="Write decoded telemetry to this log file.")
     args = parser.parse_args()
 
     # Read in the configuration file.
@@ -491,6 +499,9 @@ def main():
 
     # Set OziMux output port
     ozi_port = user_config['ozi_udp_port']
+
+    # Open the log file.
+    log_file = open(args.log, 'wa')
 
     if args.stdin == False:
         # Start up a UDP listener.
@@ -554,6 +565,7 @@ def main():
         logging.info("Caught CTRL-C, exiting.")
 
     habitat_uploader.close()
+    log_file.close()
 
     return
 

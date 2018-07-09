@@ -148,3 +148,7 @@ $ nc -l -u localhost 7355 | ./horus_demod -m binary - - | python horusbinary.py 
 ```
 Replace `binary` in the above command with `RTTY` to demodulate RTTY telemetry.
 
+On some platforms nc requires the listen port to be specified with the -p argument. In those cases, use:
+```
+$ nc -l -u -p 7355 localhost | ./horus_demod -m binary - - | python horusbinary.py --stdin
+```
