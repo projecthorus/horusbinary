@@ -139,7 +139,7 @@ class HabitatUploader(object):
                 break
             elif _req.status_code == 409:
                 # 409 = Upload conflict (server busy). Sleep for a moment, then retry.
-                logging.debug("Habitat - Upload conflict.. retrying.")
+                logging.info("Habitat - Upload conflict.. retrying.")
                 time.sleep(random.random()*self.upload_retry_interval)
                 _retries += 1
             else:
@@ -473,8 +473,6 @@ def read_config(filename):
 def main():
     ''' Main Function '''
     global habitat_uploader, ozi_port, log_file
-    # Set up logging
-    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
 
     # Read command-line arguments
     parser = argparse.ArgumentParser(description="Project Horus Binary/RTTY Telemetry Handler", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -482,7 +480,21 @@ def main():
     parser.add_argument("--noupload", action="store_true", default=False, help="Disable Habitat upload.")
     parser.add_argument("--stdin", action="store_true", default=False, help="Listen for data on stdin instead of via UDP.")
     parser.add_argument("--log", type=str, default="telemetry.log", help="Write decoded telemetry to this log file.")
+    parser.add_argument("--debuglog", type=str, default="horusb_debug.log", help="Write debug log to this file.")
+    parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose output (set logging level to DEBUG)")
     args = parser.parse_args()
+
+    if args.verbose:
+        logging_level = logging.DEBUG
+    else:
+        logging_level = logging.INFO
+
+    # Set up logging
+    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename=args.debuglog, level=logging_level)
+    stdout_format = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(stdout_format)
+    logging.getLogger().addHandler(stdout_handler)
 
     # Read in the configuration file.
     user_config = read_config(args.config)
@@ -530,7 +542,6 @@ def main():
                 try:
                     data = s.recvfrom(1024)
                 except socket.timeout:
-                    logging.debug("UDP Socket Timeout.")
                     data = None
                 except KeyboardInterrupt:
                     break
