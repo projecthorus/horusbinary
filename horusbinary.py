@@ -513,7 +513,7 @@ def main():
     ozi_port = user_config['ozi_udp_port']
 
     # Open the log file.
-    log_file = open(args.log, 'wa')
+    log_file = open(args.log, 'a')
 
     if args.stdin == False:
         # Start up a UDP listener.
