@@ -206,6 +206,117 @@ class HabitatUploader(object):
         ''' Shutdown uploader thread. '''
         self.habitat_uploader_running = False
 
+#
+# Habitat Listener Position
+#
+
+callsign_init = False
+HABITAT_URL = "http://habitat.habhub.org/"
+url_habitat_uuids = HABITAT_URL + "_uuids?count=%d"
+url_habitat_db = HABITAT_URL + "habitat/"
+
+uuids = []
+
+def ISOStringNow():
+    return "%sZ" % datetime.datetime.utcnow().isoformat()
+
+
+def postListenerData(doc, timeout=10):
+    global uuids, url_habitat_db
+    # do we have at least one uuid, if not go get more
+    if len(uuids) < 1:
+        fetchUuids()
+
+    # Attempt to add UUID and time data to document.
+    try:
+        doc['_id'] = uuids.pop()
+    except IndexError:
+        logging.error("Habitat - Unable to post listener data - no UUIDs available.")
+        return False
+
+    doc['time_uploaded'] = ISOStringNow()
+
+    try:
+        _r = requests.post(url_habitat_db, json=doc, timeout=timeout)
+        return True
+    except Exception as e:
+        logging.error("Habitat - Could not post listener data - %s" % str(e))
+        return False
+
+
+def fetchUuids(timeout=10):
+    global uuids, url_habitat_uuids
+
+    _retries = 5
+
+    while _retries > 0:
+        try:
+            _r = requests.get(url_habitat_uuids % 10, timeout=timeout)
+            uuids.extend(_r.json()['uuids'])
+            logging.debug("Habitat - Got UUIDs")
+            return
+        except Exception as e:
+            logging.error("Habitat - Unable to fetch UUIDs, retrying in 10 seconds - %s" % str(e))
+            time.sleep(10)
+            _retries = _retries - 1
+            continue
+
+    logging.error("Habitat - Gave up trying to get UUIDs.")
+    return
+
+
+def initListenerCallsign(callsign, radio='', antenna=''):
+    doc = {
+            'type': 'listener_information',
+            'time_created' : ISOStringNow(),
+            'data': {
+                'callsign': callsign,
+                'antenna': antenna,
+                'radio': radio,
+                }
+            }
+
+    resp = postListenerData(doc)
+
+    if resp is True:
+        logging.debug("Habitat - Listener Callsign Initialized.")
+        return True
+    else:
+        logging.error("Habitat - Unable to initialize callsign.")
+        return False
+
+
+def uploadListenerPosition(callsign, lat, lon, radio='', antenna=''):
+    """ Initializer Listener Callsign, and upload Listener Position """
+
+    # Attempt to initialize the listeners callsign
+    resp = initListenerCallsign(callsign, radio=radio, antenna=antenna)
+    # If this fails, it means we can't contact the Habitat server,
+    # so there is no point continuing.
+    if resp is False:
+        return False
+
+    doc = {
+        'type': 'listener_telemetry',
+        'time_created': ISOStringNow(),
+        'data': {
+            'callsign': callsign,
+            'chase': False,
+            'latitude': lat,
+            'longitude': lon,
+            'altitude': 0,
+            'speed': 0,
+        }
+    }
+
+    # post position to habitat
+    resp = postListenerData(doc)
+    if resp is True:
+        logging.info("Habitat - Listener information uploaded.")
+        return True
+    else:
+        logging.error("Habitat - Unable to upload listener information.")
+        return False
 
 #
 # Utility functions
@@ -450,7 +561,11 @@ def read_config(filename):
         'user_call' : 'HORUS_RX',
         'payload_call' : 'HORUSBINARY',
         'freedv_udp_port' : 55690,
-        'ozi_udp_port' : 55683
+        'ozi_udp_port' : 55683,
+        'station_lat' : 0.0,
+        'station_lon' : 0.0,
+        'radio_comment' : "",
+        'antenna_comment' : ""
     }
 
     try:
@@ -458,6 +573,10 @@ def read_config(filename):
         config.read(filename)
 
         user_config['user_call'] = config.get('user', 'callsign')
+        user_config['station_lat'] = config.getfloat('user', 'station_lat')
+        user_config['station_lon'] = config.getfloat('user', 'station_lon')
+        user_config['radio_comment'] = config.get('user', 'radio_comment')
+        user_config['antenna_comment'] = config.get('user', 'antenna_comment')
         user_config['payload_call'] = config.get('payload', 'payload_callsign')
         user_config['freedv_udp_port'] = config.getint('freedv', 'udp_port')
         user_config['ozi_udp_port'] = config.getint('ozimux', 'ozimux_port')
@@ -466,7 +585,7 @@ def read_config(filename):
 
     except:
         traceback.print_exc()
-        logging.error("Could not parse config file.")
+        logging.error("Could not parse config file, exiting.")
         return None
 
 
@@ -505,6 +624,20 @@ def main():
     else:
         logging.info("Using User Callsign: %s" % user_config['user_call'])
         logging.info("Using Payload Callsign: %s" % user_config['payload_call'])
+
+        if user_config['station_lat'] != 0.0:
+            logging.info("Using Station Position: %.5f, %.5f" % (user_config['station_lat'], user_config['station_lon']))
+            # Upload the listener position
+            uploadListenerPosition(
+                user_config['user_call'], 
+                user_config['station_lat'],
+                user_config['station_lon'],
+                radio=user_config['radio_comment'],
+                antenna=user_config['antenna_comment']
+            )
+        else:
+            logging.info("No user position supplied, not uploading position to Habitat.")
+
 
     # Start the Habitat uploader thread.
     habitat_uploader = HabitatUploader(user_callsign = user_config['user_call'], inhibit=args.noupload)
