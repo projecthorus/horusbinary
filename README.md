@@ -5,23 +5,10 @@ It also adds support for a binary-packet 4FSK mode, designed specifically for hi
 
 Currently we are developing the modem under Linux & OSX, with the eventual aim to produce a cross-platform GUI. For now, the demodulator is available as a command-line utility, with additional binary packet processing and uploading of data to Habitat performed by the `horusbinary.py` python script.
 
-These modems have recently been added to the [FreeDV GUI](http://freedv.org), to allow easier usage. Refer to this guide for instructions on using FreeDV to decode Horus Binary telemetry: https://github.com/projecthorus/horusbinary/wiki/FreeDV---HorusBinary-Setup-&-Usage-Instructions
+These modems have recently been added to the FreeDV GUI, to allow easier usage. Refer to this guide for instructions on using FreeDV to decode Horus Binary telemetry: https://github.com/projecthorus/horusbinary/wiki/FreeDV---HorusBinary-Setup-&-Usage-Instructions
 
 ## Modes Supported
 The `horus_demod` modem (located within the codec2-dev repo) is in early development, and currently only supports:
-
-### RTTY (UKHAS-Standard Sentences)
-[UKHAS-standard](https://ukhas.org.uk/communication:protocol) telemetry sentences, sent via RTTY can be decoded. These take the general form:
-```
-$$$$$CALLSIGN,other,fields,here*CRC16\n
-```
-Note the use of five (5) '$' symbols at the start of the sentence. This is used as a 'unique word' for packet dection, and must be present. Other quantities of '$'s will *not* be detected.
-
-Only RTTY telemetry with the following parameters are supported:
-* Baud Rate: 100
-* Tone Spacing: 150 to ~1 kHz will work
-* Encoding: ASCII 7N2 (7-bit ASCII, no parity, 2 stop bits)
-* CRC: CRC16-CCITT
 
 ### MFSK - Horus Binary Packets
 Horus Binary packets take the form:
@@ -36,6 +23,19 @@ The payload consists of a 22-byte long binary packet, encoded with a Golay (23,1
 These packets are then transmitted using **4FSK modulation**, at **100 baud**.
 
 A worked example for generating encoding these packets is available in the [RS41HUP](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L401) repository.
+
+### RTTY (UKHAS-Standard Sentences)
+[UKHAS-standard](https://ukhas.org.uk/communication:protocol) telemetry sentences, sent via RTTY can be decoded. These take the general form:
+```
+$$$$$CALLSIGN,other,fields,here*CRC16\n
+```
+Note the use of five (5) '$' symbols at the start of the sentence. This is used as a 'unique word' for packet dection, and must be present. Other quantities of '$'s will *not* be detected.
+
+Only RTTY telemetry with the following parameters are supported:
+* Baud Rate: 100
+* Tone Spacing: 150 to ~1 kHz will work
+* Encoding: ASCII 7N2 (7-bit ASCII, no parity, 2 stop bits)
+* CRC: CRC16-CCITT
 
 
 ## Hardware Requirements
