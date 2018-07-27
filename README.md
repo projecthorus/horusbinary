@@ -117,8 +117,20 @@ Simply change the following section as appropriate:
 [user]
 # Your callsign -  used when uploading to the HabHub Tracker.
 callsign = YOUR_CALL_HERE
+
+# Your station latitude/longitude, which will show up on tracker.habhub.org.
+# These values must be in Decimal Degree format.
+# Leave the lat/lon at 0.0 if you do not wish your station plotted on the map.
+station_lat = 0.0
+station_lon = 0.0
+# Radio/Antenna descriptions.
+# An optional short decription of your radio/antenna setup.
+radio_comment = Your Radio Description Here
+antenna_comment = Your Antenna Description Here
 ```
-Leave the other options in the configuration file at their defaults.
+
+**If you are not tracking a Project Horus launch, then you MUST change the `payload_callsign` option to something unique to your balloon launch. Please do not use the HORUSBINARY callsign for your own launches.**
+
 
 ## Receiving Using FreeDV
 **NOTE: Horus Binary support in FreeDV is still in development.**
