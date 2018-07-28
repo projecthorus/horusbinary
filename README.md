@@ -20,7 +20,9 @@ where
 ```
 The payload consists of a 22-byte long binary packet, encoded with a Golay (23,12) code, and then interleaved and scrambled, for a total encoded length of 43 bytes. The binary packet format is [available here](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L75), and the golay-encoding/interleaving/scrambling is performed by [horus_l2_encode_packet](https://github.com/darksidelemm/RS41HUP/blob/master/horus_l2.c#L117).
 
-These packets are then transmitted using **4FSK modulation**, at **100 baud**.
+At the start of a packet is a Payload ID (one byte). A lookup table for payload IDs is [located here](https://github.com/projecthorus/horusbinary/blob/master/payload_id_list.txt). **If you are going to fly your own payload using this mode, you should get a payload ID allocated for your use. This can be done by submitting an issue or a pull request to this repository.**
+
+Packets are then transmitted using **4FSK modulation**, at **100 baud**.
 
 A worked example for generating encoding these packets is available in the [RS41HUP](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L401) repository.
 
@@ -128,8 +130,6 @@ station_lon = 0.0
 radio_comment = Your Radio Description Here
 antenna_comment = Your Antenna Description Here
 ```
-
-**If you are not tracking a Project Horus launch, then you MUST change the `payload_callsign` option to something unique to your balloon launch. Please do not use the HORUSBINARY callsign for your own launches.**
 
 
 ## Receiving Using FreeDV

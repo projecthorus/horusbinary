@@ -5,5 +5,5 @@
 # Request payloads by either raising an issue, or submitting a pull request
 # on the horusbinary github page: https://github.com/projecthorus/horusbinary
 #
-0, BINARYTEST
+0, 4FSKTEST
 1, HORUSBINARY

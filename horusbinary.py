@@ -447,7 +447,7 @@ def ozimux_upload(sentence):
 # uint8_t   BattVoltage; // 0 = 0v, 255 = 5.0V, linear steps in-between.
 # uint16_t Checksum; // CRC16-CCITT Checksum.
 # };
-def decode_horus_binary(data, payload_call = 'HORUSBINARY'):
+def decode_horus_binary(data, payload_list = {}):
     ''' Decode a string containing a horus binary packet, and produce a UKHAS ASCII string '''
 
     horus_format_struct = "<BHBBBffHBBbBH"
@@ -479,6 +479,13 @@ def decode_horus_binary(data, payload_call = 'HORUSBINARY'):
     if _calculated_crc != telemetry['checksum']:
         logging.error("Checksum Mismatch - RX: %s, Calculated: %s" % (hex(telemetry['checksum']), hex(_calculated_crc)))
         return None
+
+    # Determine the payload callsign
+    if telemetry['payload_id'] not in payload_list:
+        logging.error("Unknown Payload ID %d. Have you added your payload ID to payload_id_list.txt?" % telemetry['payload_id'])
+        return None
+    
+    payload_call = payload_list[telemetry['payload_id']]
 
     # Convert some of the fields into more useful units.
     telemetry['batt_voltage'] = 5.0*telemetry['batt_voltage_raw']/255.0
@@ -523,7 +530,7 @@ def handle_ukhas(data):
     return
 
 
-def handle_binary(data, payload_call = 'HORUSBINARY'):
+def handle_binary(data, payload_list = {}):
     '''  Handle a line of binary telemetry, provided as hexadecimal. '''
     global habitat_uploader, log_file
     logging.info("Hexadecimal Sentence: %s" % data)
@@ -536,7 +543,7 @@ def handle_binary(data, payload_call = 'HORUSBINARY'):
         return
 
     # Attempt to decode the line as binary telemetry.
-    _decoded_sentence = decode_horus_binary(_binary_string, payload_call)
+    _decoded_sentence = decode_horus_binary(_binary_string, payload_list)
 
     # If the decode succeeds, upload it
     if _decoded_sentence is not None:
@@ -589,9 +596,38 @@ def read_config(filename):
         return None
 
 
+def read_payload_list(filename="payload_id_list.txt"):
+    """ Read in the payload ID list, and return the parsed data as a dictionary """
+
+    # Dummy payload list.
+    payload_list = {0:'4FSKTEST'}
+
+    try:
+        with open(filename,'r') as file:
+            for line in file:
+                # Skip comment lines.
+                if line[0] == '#':
+                    continue
+                else:
+                    # Attempt to split the line with a comma.
+                    _params = line.split(',')
+                    if len(_params) != 2:
+                        # Invalid line.
+                        logging.error("Could not parse line: %s" % line)
+                    else:
+                        _id = int(_params[0])
+                        _callsign = _params[1].strip()
+
+                        payload_list[_id] = _callsign
+    except Exception as e:
+        logging.error("Error reading payload ID list - %s" % str(e))
+
+    return payload_list
+
+
 def main():
     ''' Main Function '''
-    global habitat_uploader, ozi_port, log_file
+    global habitat_uploader, ozi_port, log_file, payload_list
 
     # Read command-line arguments
     parser = argparse.ArgumentParser(description="Project Horus Binary/RTTY Telemetry Handler", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -600,6 +636,7 @@ def main():
     parser.add_argument("--stdin", action="store_true", default=False, help="Listen for data on stdin instead of via UDP.")
     parser.add_argument("--log", type=str, default="telemetry.log", help="Write decoded telemetry to this log file.")
     parser.add_argument("--debuglog", type=str, default="horusb_debug.log", help="Write debug log to this file.")
+    parser.add_argument("--payload_list", type=str, default="payload_id_list.txt", help="List of known payload IDs.")
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose output (set logging level to DEBUG)")
     args = parser.parse_args()
 
@@ -617,6 +654,9 @@ def main():
 
     # Read in the configuration file.
     user_config = read_config(args.config)
+
+    # Read in the known-payload list.
+    payload_list = read_payload_list(args.payload_list)
 
     # If we could not read the configuration file, exit.
     if user_config == None:
@@ -703,7 +743,7 @@ def main():
             if data.startswith('$$'):
                 handle_ukhas(data)
             else:
-                handle_binary(data, user_config['payload_call'])
+                handle_binary(data, payload_list)
 
     except KeyboardInterrupt:
         logging.info("Caught CTRL-C, exiting.")
