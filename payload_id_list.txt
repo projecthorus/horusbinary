@@ -1,0 +1,9 @@
+#
+# Horus Binary Payload ID to ASCII Callsign Lookup
+#
+# Payload IDs 0 through 255 are available.
+# Request payloads by either raising an issue, or submitting a pull request
+# on the horusbinary github page: https://github.com/projecthorus/horusbinary
+#
+0, BINARYTEST
+1, HORUSBINARY
