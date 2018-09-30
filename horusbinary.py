@@ -584,7 +584,6 @@ def read_config(filename):
         user_config['station_lon'] = config.getfloat('user', 'station_lon')
         user_config['radio_comment'] = config.get('user', 'radio_comment')
         user_config['antenna_comment'] = config.get('user', 'antenna_comment')
-        user_config['payload_call'] = config.get('payload', 'payload_callsign')
         user_config['freedv_udp_port'] = config.getint('freedv', 'udp_port')
         user_config['ozi_udp_port'] = config.getint('ozimux', 'ozimux_port')
 
