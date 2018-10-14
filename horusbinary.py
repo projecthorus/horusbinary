@@ -566,7 +566,6 @@ def read_config(filename):
     ''' Read in the user configuation file.'''
     user_config = {
         'user_call' : 'HORUS_RX',
-        'payload_call' : 'HORUSBINARY',
         'freedv_udp_port' : 55690,
         'ozi_udp_port' : 55683,
         'station_lat' : 0.0,
@@ -599,7 +598,7 @@ def read_payload_list(filename="payload_id_list.txt"):
     """ Read in the payload ID list, and return the parsed data as a dictionary """
 
     # Dummy payload list.
-    payload_list = {0:'4FSKTEST'}
+    payload_list = {0:'4FSKTEST', 1:'HORUSBINARY'}
 
     try:
         with open(filename,'r') as file:
@@ -619,7 +618,11 @@ def read_payload_list(filename="payload_id_list.txt"):
 
                         payload_list[_id] = _callsign
     except Exception as e:
-        logging.error("Error reading payload ID list - %s" % str(e))
+        logging.error("Error reading payload_id_list.txt, does it exist? - %s" % str(e))
+
+    logging.info("Known Payload IDs:")
+    for _payload in payload_list:
+        logging.info("\t%s - %s" % (_payload, payload_list[_payload]))
 
     return payload_list
 
@@ -662,7 +665,6 @@ def main():
         return
     else:
         logging.info("Using User Callsign: %s" % user_config['user_call'])
-        logging.info("Using Payload Callsign: %s" % user_config['payload_call'])
 
         if user_config['station_lat'] != 0.0:
             logging.info("Using Station Position: %.5f, %.5f" % (user_config['station_lat'], user_config['station_lon']))
