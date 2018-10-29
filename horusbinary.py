@@ -355,7 +355,12 @@ def oziplotter_upload_basic_telemetry(time, latitude, longitude, altitude):
         except:
             pass
         # Send!
-        _ozisock.sendto(sentence,('<broadcast>',ozi_port))
+        try:
+            _ozisock.sendto(sentence.encode('ascii'),('<broadcast>',ozi_port))
+        except socket.error as e:
+            logging.warning("Send to broadcast address failed, sending to localhost instead.")
+            _ozisock.sendto(sentence.encode('ascii'),('127.0.0.1',ozi_port))
+
         _ozisock.close()
         logging.debug("Sent Telemetry to OziMux (%d): %s" % (ozi_port, sentence.strip()))
         return sentence
