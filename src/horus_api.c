@@ -372,8 +372,7 @@ int horus_rx(struct horus *hstates, char ascii_out[], short demod_in[], int quad
     /* demodulate latest bits */
 
     /* Note: allocating this array as an automatic variable caused OSX to
-       "Bus Error 10" (segfault), so lets malloc() it.  TODO: A real
-       short sample option for fsk_demod() would be useful */
+       "Bus Error 10" (segfault), so lets malloc() it. */
     
     COMP *demod_in_comp = (COMP*)malloc(sizeof(COMP)*hstates->fsk->nin);
     
