@@ -349,7 +349,7 @@ int extract_horus_binary(struct horus *hstates, char hex_out[], int uw_loc) {
 }
 
 
-int horus_rx(struct horus *hstates, char ascii_out[], short demod_in[]) {
+int horus_rx(struct horus *hstates, char ascii_out[], short demod_in[], int quadrature) {
     int i, j, uw_loc, packet_detected;
     
     assert(hstates != NULL);
@@ -378,8 +378,13 @@ int horus_rx(struct horus *hstates, char ascii_out[], short demod_in[]) {
     COMP *demod_in_comp = (COMP*)malloc(sizeof(COMP)*hstates->fsk->nin);
     
     for (i=0; i<hstates->fsk->nin; i++) {
-        demod_in_comp[i].real = demod_in[i];
-        demod_in_comp[i].imag = 0;
+	if (quadrature) {
+	    demod_in_comp[i].real = demod_in[i * 2];
+	    demod_in_comp[i].imag = demod_in[i * 2 + 1];
+	} else {
+	    demod_in_comp[i].real = demod_in[i];
+	    demod_in_comp[i].imag = 0;
+	}
     }
     fsk_demod(hstates->fsk, &hstates->rx_bits[rx_bits_len-Nbits], demod_in_comp);
     free(demod_in_comp);

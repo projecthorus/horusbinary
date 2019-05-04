@@ -50,7 +50,7 @@ uint32_t      horus_nin   (struct horus *hstates);
 
 /* returns 1 if ascii_out[] is valid */
       
-int           horus_rx    (struct horus *hstates, char ascii_out[], short demod_in[]);
+int           horus_rx    (struct horus *hstates, char ascii_out[], short demod_in[], int quadrature);
 
 /* set verbose level */
       
