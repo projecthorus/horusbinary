@@ -75,42 +75,31 @@ Once Anaconda is installed, grab the rest of the required dependencies by openin
 You may wish to set the python interpreter (which should be located at C:\ProgramData\Anaconda2\python.exe) as the default program to open .py files.
 
 
-## Building Horus-Demod
-If you wish to use the command-line demodulator (Linux/OSX only) instead of FreeDV, follow these instructions. Otherwise, skip to the next section.
-
-### Build Dependencies
-We require a few dependencies to be able to use the new modem. Some can be obtained via the system package manager, others can be installed via the python package manager.
-
-#### System Packages
-Under Ubuntu/Debian, you can install the required packages using:
-```
-$ sudo apt-get install subversion cmake build-essential libfftw3-dev libspeexdsp-dev libsamplerate0-dev libusb-1.0-0-dev
-```
-
-### Compiling horus_demod (via the codec2-dev repository)
-We need to compile the horus_demod binary from within the codec2-dev repository. This can be accomplished by performing (within this directory):
-```
-$ svn checkout https://svn.code.sf.net/p/freetel/code/codec2-dev
-$ cd codec2-dev
-$ mkdir build
-$ cd build
-$ cmake ..
-$ cd src
-$ make horus_demod
-$ cp horus_demod ../../../
-$ cd ../../../
-```
-
-Note that we do not build all the binaries within codec2-dev, just the one we need!
-
-TODO: Bring the necessary source code into this repository, to avoid needing to checkout all of codec2-dev.
-
 ## Downloading this Repository
 You can either clone this repository using git:
 ```
 $ git clone https://github.com/projecthorus/horusbinary.git
 ```
-or download a zip file of the repository [from here](https://github.com/projecthorus/horusbinary/archive/master.zip). 
+or download a zip file of the repository [from here](https://github.com/projecthorus/horusbinary/archive/master.zip).
+
+
+## Building Horus-Demod
+If you wish to use the command-line demodulator (Linux/OSX only) instead of FreeDV, follow these instructions. Otherwise, skip to the next section.
+
+### Build Dependencies
+We may require a few dependencies to be able to use the new modem. Under Ubuntu/Debian, you can install the required packages using:
+```
+$ sudo apt-get install subversion cmake build-essential libfftw3-dev libspeexdsp-dev libsamplerate0-dev libusb-1.0-0-dev
+```
+
+### Compiling horus_demod
+We need to compile the horus_demod binary (taken from the codec2 repository). This can be accomplished by performing (within this directory):
+```
+$ cd src
+$ make
+$ cp horus_demod ../
+$ cd ../
+```
 
 ## Configuration File
 The file `user.cfg` should be modified to reflect the callsign you wish to use when uploading data to Habitat.
@@ -151,6 +140,13 @@ We can string these applications together in the command shell using 'pipes', as
 $ sox -d -r 48k -c 1 -t s16 - | ./horus_demod -m binary - - | python horusbinary.py --stdin
 ```
 The above command records from the default sound device.
+
+### Demodulating using rtl_fm
+This assumes you want to use an rtl-sdr dongle on a headless Linux machine.
+```
+rtl_fm -M raw -s 48000 -p 0 -f 434410000 | ./horus_demod -q -m binary - - | python horusbinary.py --stdin
+```
+Tune 1600 Hz below the expected centre frequency, and make sure that your dongle has a known ppm adjustment.
 
 ### Demodulating using GQRX 
 This assumes you have GQRX installed (`sudo apt-get install gqrx`) and working, have set up a USB demodulator over the signal of interest, and have enabled the [UDP output option](http://gqrx.dk/doc/streaming-audio-over-udp) by clicking the UDP button at the bottom-right of the GQRX window.
