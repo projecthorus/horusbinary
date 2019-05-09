@@ -52,6 +52,9 @@ habitat_uploader = None
 # OziMux Telemetry output port
 ozi_port = 55683
 
+# Payload Summary Output Port
+summary_port = -1
+
 # Log file object
 log_file = None
 #
@@ -429,6 +432,66 @@ def ozimux_upload(sentence):
         return
 
 
+def send_payload_summary(telemetry):
+    """ Send a payload summary message into the network via UDP broadcast.
+
+    Args:
+    telemetry (dict): Telemetry dictionary to send.
+    port (int): UDP port to send to.
+
+    """
+    global summary_port
+
+    # If the summary port is set to -1, then payload summary output has not been enabled.
+    if summary_port == -1:
+        return
+
+    try:
+        # Do a few checks before sending.
+        if telemetry['latitude'] == 0.0 and telemetry['longitude'] == 0.0:
+            logging.error("Horus UDP - Zero Latitude/Longitude, not sending.")
+            return
+
+        packet = {
+            'type' : 'PAYLOAD_SUMMARY',
+            'callsign' : telemetry['callsign'],
+            'latitude' : telemetry['latitude'],
+            'longitude' : telemetry['longitude'],
+            'altitude' : telemetry['altitude'],
+            'speed' : telemetry['speed'],
+            'heading': -1,
+            'time' : telemetry['time'],
+            'comment' : 'Horus Binary',
+            'temp': telemetry['temp'],
+            'sats': telemetry['sats'],
+            'batt_voltage': telemetry['batt_voltage']
+        }
+
+        # Set up our UDP socket
+        _s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        _s.settimeout(1)
+        # Set up socket for broadcast, and allow re-use of the address
+        _s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
+        _s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Under OSX we also need to set SO_REUSEPORT to 1
+        try:
+            _s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except:
+            pass
+
+        try:
+            _s.sendto(json.dumps(packet).encode('ascii'), ('<broadcast>',summary_port))
+        # Catch any socket errors, that may occur when attempting to send to a broadcast address
+        # when there is no network connected. In this case, re-try and send to localhost instead.
+        except socket.error as e:
+            logging.debug("Horus UDP - Send to broadcast address failed, sending to localhost instead.")
+            _s.sendto(json.dumps(packet).encode('ascii'), ('127.0.0.1', summary_port))
+
+        _s.close()
+
+    except Exception as e:
+        logging.error("Horus UDP - Error sending Payload Summary: %s" % str(e))
+
 
 #
 # Binary Packet Decoder
@@ -461,7 +524,7 @@ def decode_horus_binary(data, payload_list = {}):
         unpacked = struct.unpack(horus_format_struct, data)
     except Exception as e:
         logging.error("Error parsing binary telemetry - %s" % str(e))
-        return None
+        return (None, None)
 
 
     telemetry = {}
@@ -483,14 +546,16 @@ def decode_horus_binary(data, payload_list = {}):
 
     if _calculated_crc != telemetry['checksum']:
         logging.error("Checksum Mismatch - RX: %s, Calculated: %s" % (hex(telemetry['checksum']), hex(_calculated_crc)))
-        return None
+        return (None, None)
 
     # Determine the payload callsign
     if telemetry['payload_id'] not in payload_list:
         logging.error("Unknown Payload ID %d. Have you added your payload ID to payload_id_list.txt?" % telemetry['payload_id'])
-        return None
+        return (None, None)
     
     payload_call = payload_list[telemetry['payload_id']]
+
+    telemetry['callsign'] = payload_call
 
     # Convert some of the fields into more useful units.
     telemetry['batt_voltage'] = 5.0*telemetry['batt_voltage_raw']/255.0
@@ -513,7 +578,7 @@ def decode_horus_binary(data, payload_list = {}):
 
     logging.info("Decoded Binary Telemetry as: %s" % _output.strip())
 
-    return _output
+    return (_output, telemetry)
 
 
 
@@ -525,6 +590,8 @@ def handle_ukhas(data):
 
     # Emit OziMux telemetry
     ozimux_upload(data)
+
+    # TODO - Send via payload summary message.
 
     # Upload data via Habitat
     if habitat_uploader is not None:
@@ -548,12 +615,15 @@ def handle_binary(data, payload_list = {}):
         return
 
     # Attempt to decode the line as binary telemetry.
-    _decoded_sentence = decode_horus_binary(_binary_string, payload_list)
+    (_decoded_sentence, telem_dict) = decode_horus_binary(_binary_string, payload_list)
 
     # If the decode succeeds, upload it
     if _decoded_sentence is not None:
         # Emit OziMux telemetry
         ozimux_upload(_decoded_sentence)
+
+        # Emit payload summary
+        send_payload_summary(telem_dict)
 
         # Write out to the log tile
         if log_file != None:
@@ -634,7 +704,7 @@ def read_payload_list(filename="payload_id_list.txt"):
 
 def main():
     ''' Main Function '''
-    global habitat_uploader, ozi_port, log_file, payload_list
+    global habitat_uploader, ozi_port, summary_port, log_file, payload_list
 
     # Read command-line arguments
     parser = argparse.ArgumentParser(description="Project Horus Binary/RTTY Telemetry Handler", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -644,6 +714,7 @@ def main():
     parser.add_argument("--log", type=str, default="telemetry.log", help="Write decoded telemetry to this log file.")
     parser.add_argument("--debuglog", type=str, default="horusb_debug.log", help="Write debug log to this file.")
     parser.add_argument("--payload_list", type=str, default="payload_id_list.txt", help="List of known payload IDs.")
+    parser.add_argument("--summary", type=int, default=-1, help="Output Payload Summary data on supplied port. Default: -1 (disabled). Usual Horus UDP port is 55672.")
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose output (set logging level to DEBUG)")
     args = parser.parse_args()
 
@@ -664,6 +735,7 @@ def main():
 
     # Read in the known-payload list.
     payload_list = read_payload_list(args.payload_list)
+
 
     # If we could not read the configuration file, exit.
     if user_config == None:
@@ -690,6 +762,9 @@ def main():
 
     # Set OziMux output port
     ozi_port = user_config['ozi_udp_port']
+
+    # Set Payload Summary port
+    summary_port = args.summary
 
     # Open the log file.
     log_file = open(args.log, 'a')
