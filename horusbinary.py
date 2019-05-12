@@ -20,13 +20,13 @@
 #   $ nc -l -u localhost 7355 | ./horus_demod <arguments> | python horusbinary.py --usercall=MYCALL 
 #
 import argparse
+import codecs
 import crcmod
 import datetime
 import json
 import logging
 import os
 import pprint
-import Queue
 import random
 import requests
 import socket
@@ -37,6 +37,13 @@ import traceback
 from threading import Thread
 from base64 import b64encode
 from hashlib import sha256
+
+try:
+    # Python 2
+    from Queue import Queue
+except ImportError:
+    # Python 3
+    from queue import Queue
 
 try:
     # Python 2
@@ -86,7 +93,7 @@ class HabitatUploader(object):
         self.upload_retries = upload_retries
         self.upload_retry_interval = upload_retry_interval
         self.queue_size = queue_size
-        self.habitat_upload_queue = Queue.Queue(queue_size)
+        self.habitat_upload_queue = Queue(queue_size)
         self.inhibit = inhibit
 
         # Start the uploader thread.
@@ -98,14 +105,15 @@ class HabitatUploader(object):
         ''' Upload a UKHAS-standard telemetry sentence to Habitat '''
 
         # Generate payload to be uploaded
-        _sentence_b64 = b64encode(sentence)
+        # b64encode accepts and returns bytes objects.
+        _sentence_b64 = b64encode(sentence.encode('ascii'))
         _date = datetime.datetime.utcnow().isoformat("T") + "Z"
         _user_call = self.user_callsign
 
         _data = {
             "type": "payload_telemetry",
             "data": {
-                "_raw": _sentence_b64
+                "_raw": _sentence_b64.decode('ascii') # Convert back to a string to be serialisable
                 },
             "receivers": {
                 _user_call: {
@@ -389,7 +397,7 @@ def ozimux_upload(sentence):
         _crc = _sentence.split('*')[1]
 
         # Now check if the CRC matches.
-        _calc_crc = crc16_ccitt(_telem)
+        _calc_crc = crc16_ccitt(_telem.encode('ascii'))
 
         if _calc_crc != _crc:
             logging.error("Could not parse ASCII Sentence - CRC Fail.")
@@ -573,7 +581,7 @@ def decode_horus_binary(data, payload_list = {}):
         telemetry['temp'],
         telemetry['batt_voltage'])
     # Append checksum
-    _checksum = crc16_ccitt(_sentence[2:])
+    _checksum = crc16_ccitt(_sentence[2:].encode('ascii'))
     _output = _sentence + "*" + _checksum + "\n"
 
     logging.info("Decoded Binary Telemetry as: %s" % _output.strip())
@@ -609,7 +617,7 @@ def handle_binary(data, payload_list = {}):
 
     # Attempt to parse the line of data as hexadecimal.
     try:
-        _binary_string = data.decode('hex')
+        _binary_string = codecs.decode(data, 'hex')
     except TypeError as e:
         logging.error("Error parsing line as hexadecimal (%s): %s" % (str(e), data))
         return
@@ -627,7 +635,7 @@ def handle_binary(data, payload_list = {}):
 
         # Write out to the log tile
         if log_file != None:
-            log_file.write(_decoded_sentence.encode('ascii'))
+            log_file.write(_decoded_sentence)
             log_file.flush()
 
         # Upload data via Habitat
@@ -804,11 +812,13 @@ def main():
                     data = None
 
                 if data != None:
-                    data = data[0]
+                    # s.recvfrom gives us bytes, convert to a string.
+                    data = data[0].decode('ascii')
                 else:
                     continue
 
-            else:   
+            else:
+                # This will give us a string in both Python 2 and 3.
                 data = sys.stdin.readline()
 
             if (args.stdin == False) and (data == ''):
