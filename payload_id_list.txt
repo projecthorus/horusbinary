@@ -1,8 +1,10 @@
+# HORUS BINARY PAYLOAD ID LIST
+# 2019-06-02
 #
-# Horus Binary Payload ID to ASCII Callsign Lookup
+# Payload IDs 0 through 255 are available. If we get near this limit,
+# the payload format may need to be re-evaluated.
 #
-# Payload IDs 0 through 255 are available.
-# Request payloads by either raising an issue, or submitting a pull request
+# Request a payload ID by either raising an issue, or submitting a pull request
 # on the horusbinary github page: https://github.com/projecthorus/horusbinary
 #
 0, 4FSKTEST
