@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 #
-#   Project Horus Binary/RTTY Telemetry - Habitat/OziMux Uploader
+#   Project Horus Binary/RTTY Telemetry - Habitat/ChaseMapper Uploader
 #
-#   Copyright (C) 2018  Mark Jessop <vk5qi@rfhead.net>
+#   Copyright (C) 2019  Mark Jessop <vk5qi@rfhead.net>
 #   Released under GNU GPL v3 or later
 #
 #   This code accepts the following telemetry formats via stdin:
 #       - Horus Binary Telemetry packets, as hexadecimal data, followed by a newline.
-#       - RTTY Telemetry ($$<data>*<checksum>\n)
+#       - RTTY Telemetry ($$$$$<data>*<checksum>\n)
 #   Packets are parsed and added to a queue for upload to the Habitat database.
-#   OziMux telemetry messages are also emitted on UDP port 55683
+#   OziMux telemetry messages are also emitted on UDP port 55683, and 'Horus UDP'
+#   messages on UDP port 55672.
 #
 #   Dependencies:
 #       The following Python packages are required (install with: sudo pip install <package>)
@@ -17,7 +18,7 @@
 #       * requests
 #
 #   Example Usage (SSB demod via GQRX, decoding using 'horus_api' from codec2-dev):
-#   $ nc -l -u localhost 7355 | ./horus_demod <arguments> | python horusbinary.py --usercall=MYCALL 
+#   $ nc -l -u localhost 7355 | ./horus_demod <arguments> | python horusbinary.py
 #
 import argparse
 import codecs
@@ -343,6 +344,7 @@ def crc16_ccitt(data):
     return hex(crc16(data))[2:].upper().zfill(4)
 
 
+
 #
 # OziMux UDP Packet Generation Functions
 #
@@ -651,6 +653,7 @@ def read_config(filename):
         'user_call' : 'HORUS_RX',
         'freedv_udp_port' : 55690,
         'ozi_udp_port' : 55683,
+        'summary_port' : 55672,
         'station_lat' : 0.0,
         'station_lon' : 0.0,
         'radio_comment' : "",
@@ -668,12 +671,13 @@ def read_config(filename):
         user_config['antenna_comment'] = config.get('user', 'antenna_comment')
         user_config['freedv_udp_port'] = config.getint('freedv', 'udp_port')
         user_config['ozi_udp_port'] = config.getint('ozimux', 'ozimux_port')
+        user_config['summary_port'] = config.getint('ozimux', 'summary_port')
 
         return user_config
 
     except:
         traceback.print_exc()
-        logging.error("Could not parse config file, exiting.")
+        logging.error("Could not parse config file, exiting. Have you copied user.cfg.example to user.cfg?")
         return None
 
 
@@ -696,18 +700,46 @@ def read_payload_list(filename="payload_id_list.txt"):
                         # Invalid line.
                         logging.error("Could not parse line: %s" % line)
                     else:
-                        _id = int(_params[0])
-                        _callsign = _params[1].strip()
-
-                        payload_list[_id] = _callsign
+                        try:
+                            _id = int(_params[0])
+                            _callsign = _params[1].strip()
+                            payload_list[_id] = _callsign
+                        except:
+                            logging.error("Error parsing line: %s" % line)
     except Exception as e:
-        logging.error("Error reading payload_id_list.txt, does it exist? - %s" % str(e))
+        logging.error("Error reading Payload ID list, does it exist? - %s" % str(e))
 
     logging.info("Known Payload IDs:")
     for _payload in payload_list:
         logging.info("\t%s - %s" % (_payload, payload_list[_payload]))
 
     return payload_list
+
+
+PAYLOAD_ID_LIST_URL = "https://raw.githubusercontent.com/projecthorus/horusbinary/master/payload_id_list.txt"
+
+def grab_latest_payload_id_list(url, local_file="payload_id_list.txt"):
+    """ Attempt to download the latest payload ID list from Github """
+
+    # Download the list.
+    try:
+        logging.info("Attempting to download latest payload ID list from GitHub...")
+        _r = requests.get(url, timeout=10)
+    except Exception as e:
+        logging.error("Unable to get latest payload ID list: %s" % str(e))
+        return False
+
+    # Check it is what we think it is..
+    if "HORUS BINARY PAYLOAD ID LIST" not in _r.text:
+        logging.error("Downloaded payload ID list is invalid.")
+        return False
+
+    # So now we most likely have a valid payload ID list, so write it out.
+    with open(local_file, 'w') as f:
+        f.write(_r.text)
+
+    return True
+
 
 
 def main():
@@ -721,8 +753,7 @@ def main():
     parser.add_argument("--stdin", action="store_true", default=False, help="Listen for data on stdin instead of via UDP.")
     parser.add_argument("--log", type=str, default="telemetry.log", help="Write decoded telemetry to this log file.")
     parser.add_argument("--debuglog", type=str, default="horusb_debug.log", help="Write debug log to this file.")
-    parser.add_argument("--payload_list", type=str, default="payload_id_list.txt", help="List of known payload IDs.")
-    parser.add_argument("--summary", type=int, default=-1, help="Output Payload Summary data on supplied port. Default: -1 (disabled). Usual Horus UDP port is 55672.")
+    parser.add_argument("--payload-list", type=str, default="payload_id_list.txt", help="List of known payload IDs.")
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose output (set logging level to DEBUG)")
     args = parser.parse_args()
 
@@ -741,8 +772,16 @@ def main():
     # Read in the configuration file.
     user_config = read_config(args.config)
 
-    # Read in the known-payload list.
-    payload_list = read_payload_list(args.payload_list)
+    if args.payload_list != "payload_id_list.txt":
+        logging.info("Skipping update of payload ID list and using user-supplied file %s." % args.payload_list)
+        payload_list = read_payload_list(args.payload_list)
+    else:
+        if grab_latest_payload_id_list(url=PAYLOAD_ID_LIST_URL):
+            logging.info("Payload ID list updated successfuly.")
+        else:
+            logging.error("Could not update payload ID list, using local copy.")
+
+        payload_list = read_payload_list("payload_id_list.txt")
 
 
     # If we could not read the configuration file, exit.
@@ -772,7 +811,7 @@ def main():
     ozi_port = user_config['ozi_udp_port']
 
     # Set Payload Summary port
-    summary_port = args.summary
+    summary_port = user_config['summary_port']
 
     # Open the log file.
     log_file = open(args.log, 'a')

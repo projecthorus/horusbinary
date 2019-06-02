@@ -1,7 +1,7 @@
 # Project Horus's Low-Speed Binary Telemetry System
 This repository contains documentation and scripts to work with the new `horus_demod` MFSK/RTTY demodulator, developed by [David Rowe](http://rowetel.com). Currently this demodulator provides ~2.5dB better RTTY decode performance than dl-fldigi 3.21.50, and ~0.5dB better performance than fldigi 4.0.1.
 
-It also adds support for a binary-packet 4FSK mode, designed specifically for high-altitude balloon telemetry, and which is intended to supercede RTTY for all Project Horus launches. Preliminary testing shows it has ~6dB improved demodulation performance over RTTY at the same baud rate.
+More importantly, it also adds support for a binary-packet 4FSK mode, designed specifically for high-altitude balloon telemetry, and which is intended to supercede RTTY for all Project Horus launches. Preliminary testing shows it has ~6dB improved demodulation performance over RTTY at the same baud rate.
 
 Currently we are developing the modem under Linux & OSX, with the eventual aim to produce a cross-platform GUI. For now, the demodulator is available as a command-line utility, with additional binary packet processing and uploading of data to Habitat performed by the `horusbinary.py` python script.
 
@@ -18,16 +18,16 @@ where
 <preamble> = 0x1B1B1B1B
 <unique word> = 0x2424
 ```
-The payload consists of a 22-byte long binary packet, encoded with a Golay (23,12) code, and then interleaved and scrambled, for a total encoded length of 43 bytes. The binary packet format is [available here](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L75), and the golay-encoding/interleaving/scrambling is performed by [horus_l2_encode_packet](https://github.com/darksidelemm/RS41HUP/blob/master/horus_l2.c#L117).
+The payload consists of a 22-byte long binary packet, encoded with a Golay (23,12) code, and then interleaved and scrambled, for a total encoded length of 43 bytes. The binary packet format is [available here](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L72), and the golay-encoding/interleaving/scrambling is performed by [horus_l2_encode_packet](https://github.com/darksidelemm/RS41HUP/blob/master/horus_l2.c#L117).
 
-At the start of a packet is a Payload ID (one byte). A lookup table for payload IDs is [located here](https://github.com/projecthorus/horusbinary/blob/master/payload_id_list.txt). **If you are going to fly your own payload using this mode, you should get a payload ID allocated for your use. This can be done by submitting an issue or a pull request to this repository.**
+At the start of a packet is a Payload ID (one byte). A lookup table for payload IDs is [located here](https://github.com/projecthorus/horusbinary/blob/master/payload_id_list.txt). **If you are going to fly your own payload using this mode, you must get a payload ID allocated for your use. This can be done by submitting an issue or a pull request to this repository, or e-mailing me at vk5qi (at) rfhead.net**
 
 Packets are then transmitted using **4FSK modulation**, at **100 baud**.
 
-A worked example for generating encoding these packets is available in the [RS41HUP](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L401) repository.
+A worked example for generating and encoding these packets is available in the [RS41HUP](https://github.com/darksidelemm/RS41HUP/blob/master/main.c#L401) repository.
 
 ### RTTY (UKHAS-Standard Sentences)
-[UKHAS-standard](https://ukhas.org.uk/communication:protocol) telemetry sentences, sent via RTTY can be decoded. These take the general form:
+[UKHAS-standard](https://ukhas.org.uk/communication:protocol) telemetry sentences sent via RTTY can be decoded. These take the general form:
 ```
 $$$$$CALLSIGN,other,fields,here*CRC16\n
 ```
@@ -39,6 +39,7 @@ Only RTTY telemetry with the following parameters are supported:
 * Encoding: ASCII 7N2 (7-bit ASCII, no parity, 2 stop bits)
 * CRC: CRC16-CCITT
 
+The RTTY decoding functionality of this repository should be considered 'experimental', and was added more for legacy reasons.
 
 ## Hardware Requirements
 Both the RTTY and MFSK modes are narrow bandwidth, and can be received using a regular single-sideband (SSB) radio receiver. This could be a 'traditional' receiver (like a Icom IC-7000, Yaesu FT-817 to name but a few), or a software-defined radio receiver. The point is we need to receive the on-air signal (we usually transmit on 70cm) with an Upper-Sideband (USB) demodulator, and then get that audio into your computer.
@@ -58,21 +59,21 @@ To be able to use the horusbinary.py Python script, you will need a Python inter
 ### Linux / OSX
 Under Linux (Ubuntu/Debian) install the required packages using:
 ```
-$ sudo apt-get install git python-numpy python-pyqtgraph python-crcmod python-requests python-pip sox
+$ sudo apt-get install git python-crcmod python-requests python-pip sox
 ```
 Under OSX, Macports or Homebrew should be able to provide the above packages.
 
-If the python-pyqtgraph, python-crcmod and python-requests packages are not available via your package manager, you can try installing them via pip using `sudo pip install pyqtgraph crcmod requests`.
+If the python-crcmod and python-requests packages are not available via your package manager, you can try installing them via pip using `sudo pip install crcmod requests`.
 
 ### Windows
-Under Windows, the [Anaconda Python](https://www.anaconda.com/download/) distribution provides almost everything you need. Download and install the *Python 2.7* version of Anaconda. When installing make sure the 'Add Anaconda Python to system PATH' tickbox is checked, else the below commands will not work.
+Under Windows, the [Anaconda Python](https://www.anaconda.com/download/) distribution provides almost everything you need. Download and install the latest version of Anaconda. When installing make sure the 'Add Anaconda Python to system PATH' tickbox is checked, else the below commands will not work.
 
 Once Anaconda is installed, grab the rest of the required dependencies by opening an *administrator* command prompt, and running:
 ```
-> pip install crcmod python-dateutil
+> pip install crcmod
 ```
 
-You may wish to set the python interpreter (which should be located at C:\ProgramData\Anaconda2\python.exe) as the default program to open .py files.
+You may wish to set the python interpreter (which should be located at C:\ProgramData\Anaconda3\python.exe) as the default program to open .py files.
 
 
 ## Downloading this Repository
@@ -102,7 +103,12 @@ $ cd ../
 ```
 
 ## Configuration File
-The file `user.cfg` should be modified to reflect the callsign you wish to use when uploading data to Habitat.
+Copy the example configuration file `user.cfg.example` to `user.cfg`, i.e.:
+```
+$ cp user.cfg.example user.cfg
+```
+
+The file `user.cfg` should then be modified to reflect the callsign you wish to use when uploading data to Habitat.
 Simply change the following section as appropriate:
 ```
 [user]
@@ -111,7 +117,8 @@ callsign = YOUR_CALL_HERE
 
 # Your station latitude/longitude, which will show up on tracker.habhub.org.
 # These values must be in Decimal Degree format.
-# Leave the lat/lon at 0.0 if you do not wish your station plotted on the map.
+# Leave the lat/lon at 0.0 if you do not wish your station plotted on the map,
+# or if you are uploading your position via other means (i.e. using chasemapper)
 station_lat = 0.0
 station_lon = 0.0
 # Radio/Antenna descriptions.
@@ -122,7 +129,7 @@ antenna_comment = Your Antenna Description Here
 
 
 ## Receiving Using FreeDV
-**NOTE: Horus Binary support in FreeDV is still in development.**
+**NOTE: Horus Binary support is only available in very recent versions of FreeDV.**
 
 Instructions on decoding Horus Binary telemetry using FreeDV are available here: https://github.com/projecthorus/horusbinary/wiki/FreeDV---HorusBinary-Setup-&-Usage-Instructions
 
@@ -144,12 +151,12 @@ The above command records from the default sound device.
 ### Demodulating using rtl_fm
 This assumes you want to use an rtl-sdr dongle on a headless Linux machine.
 ```
-rtl_fm -M raw -s 48000 -p 0 -f 434410000 | ./horus_demod -q -m binary - - | python horusbinary.py --stdin
+rtl_fm -M raw -s 48000 -p 0 -f 434648400 | ./horus_demod -q -m binary - - | python horusbinary.py --stdin
 ```
-Tune 1600 Hz below the expected centre frequency, and make sure that your dongle has a known ppm adjustment.
+Tune 1600 Hz below the expected centre frequency (i.e. 434.650 MHz - 1600 Hz = 434.648400 MHz = 434648400 Hz, as above), and make sure that your dongle has a known ppm adjustment.
 
 ### Demodulating using GQRX 
-This assumes you have GQRX installed (`sudo apt-get install gqrx`) and working, have set up a USB demodulator over the signal of interest, and have enabled the [UDP output option](http://gqrx.dk/doc/streaming-audio-over-udp) by clicking the UDP button at the bottom-right of the GQRX window.
+This assumes you have GQRX installed (`sudo apt-get install gqrx` or similar) and working, have set up a USB demodulator over the signal of interest, and have enabled the [UDP output option](http://gqrx.dk/doc/streaming-audio-over-udp) by clicking the UDP button at the bottom-right of the GQRX window.
 
 ```
 $ nc -l -u localhost 7355 | ./horus_demod -m binary - - | python horusbinary.py --stdin
