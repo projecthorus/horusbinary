@@ -53,6 +53,8 @@ int main(int argc, char *argv[]) {
     float    loop_time;
     int      enable_stats = 0;
     int      quadrature = 0;
+    int fsk_lower = -1;
+    int fsk_upper = -1;
 
     stats_loop = 0;
     stats_rate = 8;
@@ -66,6 +68,8 @@ int main(int argc, char *argv[]) {
             {"help",      no_argument,        0, 'h'},
             {"mode",      required_argument,  0, 'm'},
             {"stats",     optional_argument,  0, 't'},
+            {"fsk_lower", optional_argument,  0, 'b'},
+            {"fsk_upper", optional_argument,  0, 'u'},
             {0, 0, 0, 0}
         };
         
@@ -95,16 +99,27 @@ int main(int argc, char *argv[]) {
                 break;
             case 'v':
                 verbose = 1;
-            break;    
+                break;    
             case 'c':
                 crc_results = 1;
-            break;    
+                break;    
             case 'h':
             case '?':
                 goto helpmsg;
                 break;
             case 'q':
                 quadrature = 1;
+                break;
+            case 'b':
+                if (optarg != NULL){
+                    fsk_lower = atoi(optarg);
+                }
+                break;
+            case 'u':
+                if (optarg != NULL){
+                    fsk_upper = atoi(optarg);
+                }
+                break;
             break;
         }
     }
@@ -170,6 +185,13 @@ int main(int argc, char *argv[]) {
         stats_loop = (int)(1.0/(stats_rate*loop_time));
         stats_ctr = 0;
     }
+
+    if(fsk_lower> 0 && fsk_upper > fsk_lower){
+        hstates->fsk->est_min = fsk_lower;
+        hstates->fsk->est_max = fsk_upper;
+        fprintf(stderr,"Setting estimator limits to %d to %d Hz.\n",fsk_lower, fsk_upper);
+    }
+
     
     int   max_demod_in = horus_get_max_demod_in(hstates);
     int   hsize = quadrature ? 2 : 1;
