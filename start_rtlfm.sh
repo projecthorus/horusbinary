@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 echo "Launching horus_demod with rtl_fm in raw IQ mode"
 
-# Receive *centre* frequency
-# Note: The SDR will be tuned 
+# Receive *centre* frequency, in Hz
+# Note: The SDR will be tuned to RXBANDWIDTH/2 below this frequency.
 RXFREQ=434650000
 
 
@@ -13,7 +13,7 @@ RXFREQ=434650000
 GAIN=0
 
 # Bias Tee Enable (1) or Disable (0)
-BIAS=1
+BIAS=0
 
 # Receiver PPM offset
 PPM=0
@@ -26,7 +26,7 @@ RXBANDWIDTH=10000
 # Enable (1) or disable (0) modem statistics output.
 # If enabled, modem statistics are written to stats.txt, and can be observed
 # during decoding by running: tail -f stats.txt | python fskstats.py
-STATS_OUTPUT=1
+STATS_OUTPUT=0
 
 # Calculate the SDR tuning frequency
 SDR_RX_FREQ=$(echo "$RXFREQ - $RXBANDWIDTH/2 - 1000" | bc)
