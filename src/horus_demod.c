@@ -186,9 +186,8 @@ int main(int argc, char *argv[]) {
         stats_ctr = 0;
     }
 
-    if(fsk_lower> 0 && fsk_upper > fsk_lower){
-        hstates->fsk->est_min = fsk_lower;
-        hstates->fsk->est_max = fsk_upper;
+    if((fsk_lower> 0) && (fsk_upper > fsk_lower)){
+        horus_set_freq_est_limits(hstates, fsk_lower, fsk_upper);
         fprintf(stderr,"Setting estimator limits to %d to %d Hz.\n",fsk_lower, fsk_upper);
     }
 

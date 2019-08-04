@@ -67,6 +67,7 @@ void          horus_get_modem_extended_stats (struct horus *hstates, struct MODE
 int           horus_crc_ok                   (struct horus *hstates);
 int           horus_get_total_payload_bits   (struct horus *hstates);
 void          horus_set_total_payload_bits   (struct horus *hstates, int val);
+void          horus_set_freq_est_limits      (struct horus *hstates, float fsk_lower, float fsk_upper);
 
 /* how much storage you need for demod_in[] and  ascii_out[] */
       

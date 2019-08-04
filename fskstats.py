@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 #
-#	fsk_demod Statistics GUI, v2.0
+#	fsk_demod Statistics GUI
 #	Accepts the stats output from fsk_demod on stdin, and plots it.
 #
-#	Mark Jessop 2018-04-15 <vk5qi@rfhead.net>
+#	Mark Jessop 2016-03-13 <vk5qi@rfhead.net>
 #
 #	NOTE: This is intended to be run on a 'live' stream of samples, and hence expects
 #	updates at about 10Hz. Anything faster will fill up the input queue and be discarded.
@@ -12,20 +12,13 @@
 #	<producer>| ./fsk_demod 2X 8 923096 115387 - - S 2> >(python ~/Dev/codec2-dev/octave/fskdemodgui.py) | <consumer>
 #
 #
-import argparse
-import json
-import Queue
-import socket
-import sys
-import time
-import traceback
+import sys, time, json, Queue, argparse
 from threading import Thread
 from pyqtgraph.Qt import QtGui, QtCore
 import numpy as np
 import pyqtgraph as pg
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--udp", type=int, default=-1, help="Listen for data on a provided UDP port instead of stdin.")
 parser.add_argument("--wide", action="store_true", default=False, help="Alternate wide arrangement of widgets, for placement at bottom of 4:3 screen.")
 args = parser.parse_args()
 
@@ -48,7 +41,7 @@ if args.wide == False:
 	win.nextRow()
 else:
 	win.resize(1024,200)
-fest_plot = pg.PlotItem() 
+fest_plot =win.addPlot(title="Tone Frequency Estimation")
 eye_plot = win.addPlot(title="Eye Diagram")
 # Disable auto-ranging on eye plot and fix axes for a big speedup...
 spec_plot = win.addPlot(title="Spectrum")
@@ -89,12 +82,11 @@ def update_plots():
 	try:
 		if in_queue.empty():
 			return
-		in_data_raw = in_queue.get_nowait()
-		in_data = json.loads(in_data_raw)
+		in_data = in_queue.get_nowait()
+		in_data = json.loads(in_data)
 	except Exception as e:
 
 		sys.stderr.write(str(e))
-		sys.stderr.write(in_data_raw)
 		return
 
 	# Roll data arrays
@@ -168,57 +160,22 @@ timer.start(1000/update_rate)
 
 
 # Thread to read from stdin and push into a queue to be processed.
-def read_stdin():
-	''' Read JSON data via stdin '''
+def read_input():
 	global in_queue
 
 	while True:
 		in_line = sys.stdin.readline()
 
+		# Only push actual data into the queue...
+		# This stops sending heaps of empty strings into the queue when fsk_demod closes.
 		if in_line == "":
-			# Empty line means stdin has been closed, so exit this thread.
-			break
+			time.sleep(0.1)
+			continue
 
 		if not in_queue.full():
 			in_queue.put_nowait(in_line)
 
-
-udp_listener_running = True
-
-def read_udp():
-    ''' Read JSON data via UDP '''
-    global in_queue, args, udp_listener_running
-
-    _s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-    _s.settimeout(1)
-    _s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    try:
-        _s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-    except:
-        pass
-    _s.bind(('',args.udp))
-    print("Started UDP Listener Thread.")
-    udp_listener_running = True
-
-    while udp_listener_running:
-        try:
-            m = _s.recvfrom(2048)
-        except socket.timeout:
-            m = None
-        except:
-            traceback.print_exc()
-        
-        if m != None:
-            in_queue.put_nowait(m[0])
-    
-    print("Closing UDP Listener")
-    _s.close()
-
-# Start a listener thread, either UDP or stdin.
-if args.udp != -1:
-	read_thread = Thread(target=read_udp)
-else:
-	read_thread = Thread(target=read_stdin)
+read_thread = Thread(target=read_input)
 read_thread.daemon = True # Set as daemon, so when all other threads die, this one gets killed too.
 read_thread.start()
 
@@ -229,6 +186,4 @@ if __name__ == '__main__':
 		try:
 			QtGui.QApplication.instance().exec_()
 		except KeyboardInterrupt:
-			# Stop a UDP listener, if one is running
-			udp_listener_running = False
 			sys.exit(0)

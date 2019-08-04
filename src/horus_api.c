@@ -506,3 +506,11 @@ void horus_set_total_payload_bits(struct horus *hstates, int val) {
     assert(hstates != NULL);
     hstates->total_payload_bits = val;
 }
+
+void horus_set_freq_est_limits(struct horus *hstates, float fsk_lower, float fsk_upper) {
+    assert(hstates != NULL);
+    assert(fsk_lower> 0);
+    assert(fsk_upper > fsk_lower);
+    hstates->fsk->est_min = fsk_lower;
+    hstates->fsk->est_max = fsk_upper;    
+}
