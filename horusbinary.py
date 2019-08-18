@@ -403,11 +403,12 @@ def ozimux_upload(sentence):
 
         if _calc_crc != _crc:
             logging.error("Could not parse ASCII Sentence - CRC Fail.")
-            return
+            return None
 
         # We now have a valid sentence! Extract fields..
         _fields = _telem.split(',')
 
+        _callsign = _fields[0]
         _time = _fields[2]
         _latitude = float(_fields[3])
         _longitude = float(_fields[4])
@@ -421,28 +422,43 @@ def ozimux_upload(sentence):
             _time_dt = datetime.datetime.strptime(_time, "%H:%M:%S")
         except:
             logging.error("Could not parse ASCII Sentence - Invalid Time.")
-            return
+            return None
 
         # Check if the lat/long is 0.0,0.0 - no point passing this along.
         if _latitude == 0.0 or _longitude == 0.0:
             logging.error("Could not parse ASCII Sentence - Zero Lat/Long.")
-            return
+            return None
 
         # Place a limit on the altitude field. We generally store altitude on the payload as a uint16, so it shouldn't fall outside these values.
         if _altitude > 65535 or _altitude < 0:
             logging.error("Could not parse ASCII Sentence - Invalid Altitude.")
-            return
+            return None
 
         # We are now pretty sure we have valid data - upload the sentence.
         oziplotter_upload_basic_telemetry(_time, _latitude, _longitude, _altitude)
-        return
+
+        # Produce a dict output which is compatible with send_payload_summary below
+        _telem = {
+            'callsign': _callsign,
+            'time': _time,
+            'latitude': _latitude,
+            'longitude': _longitude,
+            'altitude': _altitude,
+            'speed': -1,
+            'heading': -1,
+            'temp': -1,
+            'sats': -1,
+            'batt_voltage': -1
+        }
+
+        return _telem
 
     except Exception as e:
         logging.error("Could not parse ASCII Sentence - %s" % str(e))
-        return
+        return None
 
 
-def send_payload_summary(telemetry):
+def send_payload_summary(telemetry, comment="Horus Binary"):
     """ Send a payload summary message into the network via UDP broadcast.
 
     Args:
@@ -471,7 +487,7 @@ def send_payload_summary(telemetry):
             'speed' : telemetry['speed'],
             'heading': -1,
             'time' : telemetry['time'],
-            'comment' : 'Horus Binary',
+            'comment' : comment,
             'temp': telemetry['temp'],
             'sats': telemetry['sats'],
             'batt_voltage': telemetry['batt_voltage']
@@ -599,9 +615,10 @@ def handle_ukhas(data):
     logging.info("ASCII Sentence: %s" % data)
 
     # Emit OziMux telemetry
-    ozimux_upload(data)
+    _telem = ozimux_upload(data)
 
     # TODO - Send via payload summary message.
+    send_payload_summary(_telem, comment="horus_demod RTTY")
 
     # Upload data via Habitat
     if habitat_uploader is not None:
@@ -751,9 +768,12 @@ def main():
     parser.add_argument('-c', '--config', type=str, default='user.cfg', help="Configuration file to use. Default: user.cfg")
     parser.add_argument("--noupload", action="store_true", default=False, help="Disable Habitat upload.")
     parser.add_argument("--stdin", action="store_true", default=False, help="Listen for data on stdin instead of via UDP.")
+    parser.add_argument("--rtty", action="store_true", default=False, help="Decode RTTY only (don't check for 4FSK payload list updates)")
     parser.add_argument("--log", type=str, default="telemetry.log", help="Write decoded telemetry to this log file.")
     parser.add_argument("--debuglog", type=str, default="horusb_debug.log", help="Write debug log to this file.")
     parser.add_argument("--payload-list", type=str, default="payload_id_list.txt", help="List of known payload IDs.")
+    parser.add_argument("--ozimux", type=int, default=-1, help="Override user.cfg OziMux output UDP port.")
+    parser.add_argument("--summary", type=int, default=-1, help="Override user.cfg UDP Summary output port.")
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose output (set logging level to DEBUG)")
     args = parser.parse_args()
 
@@ -772,7 +792,7 @@ def main():
     # Read in the configuration file.
     user_config = read_config(args.config)
 
-    if args.payload_list != "payload_id_list.txt":
+    if (args.payload_list != "payload_id_list.txt") or args.rtty:
         logging.info("Skipping update of payload ID list and using user-supplied file %s." % args.payload_list)
         payload_list = read_payload_list(args.payload_list)
     else:
@@ -812,6 +832,13 @@ def main():
 
     # Set Payload Summary port
     summary_port = user_config['summary_port']
+
+    # Override with command-line options if necessary
+    if args.ozimux != -1:
+        ozi_port = args.ozimux
+
+    if args.summary != -1:
+        summary_port = args.summary
 
     # Open the log file.
     log_file = open(args.log, 'a')

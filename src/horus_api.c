@@ -449,7 +449,8 @@ int horus_get_max_ascii_out_len(struct horus *hstates) {
         return hstates->max_packet_len/10;     /* 7 bit ASCII, plus 3 sync bits */
     }
     if (hstates->mode == HORUS_MODE_BINARY) {
-        return HORUS_BINARY_NUM_PAYLOAD_BYTES;
+        return (HORUS_BINARY_NUM_PAYLOAD_BYTES*2+1);     /* Hexadecimal encoded */
+        //return HORUS_BINARY_NUM_PAYLOAD_BYTES;
     }
     assert(0); /* should never get here */
     return 0;
