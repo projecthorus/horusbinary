@@ -2,10 +2,12 @@
 #
 #	Dual RTTY / Horus Binary Decoder Script
 #	Intended for use on Horus flights, with the following payload frequencies:
-#	RTTY: 434.650 MHz
-#	MFSK: 434.660 MHz
+#	RTTY: 434.650 MHz - Callsign 'HORUS'
+#	MFSK: 434.660 MHz - Callsign 'HORUSBINARY'
 #
 #	The SDR is tuned 5 kHz below the RTTY frequency, and the frequency estimators are set across the two frequencies.
+# 	Modem statistics are sent out via a new 'MODEM_STATS' UDP broadcast message every second.
+#
 
 # Receive requency, in Hz
 RXFREQ=434645000
@@ -28,9 +30,10 @@ PPM=0
 RXBANDWIDTH=8000
 
 # Enable (1) or disable (0) modem statistics output.
-# If enabled, modem statistics are written to stats.txt, and can be observed
-# during decoding by running: tail -f stats.txt | python fskstats.py
-STATS_OUTPUT=0
+# Stats are received by the fskstatsudp.py script, averaged, and then emitted into the network at STATS_RATE Hz (set below).
+STATS_OUTPUT=1
+# Stats UDP output update rate.
+STATS_RATE=1
 
 # UDP Output Ports
 RTTY_OZIMUX_PORT=55684
@@ -38,6 +41,13 @@ RTTY_SUMMARY_PORT=55672
 
 MFSK_OZIMUX_PORT=55683
 MFSK_SUMMARY_PORT=55672
+
+# Callsign information for the modem stats output
+# As the stats output does not include any information about callsign, if we want to fuse the modem stats
+# with payload information in another application, we need to manually add in the callsign information.
+# For Horus flights, this is easy: RTTY = HORUS, MFSK = HORUSBINARY.
+RTTY_CALLSIGN=HORUS
+MFSK_CALLSIGN=HORUSBINARY
 
 # Calculate the frequency estimator limits
 # Note - these are somewhat hard-coded for this dual-RX application.
@@ -65,4 +75,4 @@ if [ "$STATS_OUTPUT" = "1" ]; then
 fi
 
 # Start the receive chain.
-rtl_fm -M raw -F9 -s 48000 -p $PPM -g $GAIN$BIAS_SETTING -f $RXFREQ | tee >(./horus_demod -q -m RTTY --fsk_lower=$RTTY_LOWER --fsk_upper=$RTTY_UPPER $STATS_SETTING - - 2> stats_rtty.txt | python horusbinary.py --rtty --stdin --summary $RTTY_SUMMARY_PORT --ozimux $RTTY_OZIMUX_PORT --debuglog rtty_decode.log) >(./horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> stats_fsk.txt| python horusbinary.py --stdin --summary $MFSK_SUMMARY_PORT --ozimux $MFSK_OZIMUX_PORT --debuglog fsk_decode.log) > /dev/null
+rtl_fm -M raw -F9 -s 48000 -p $PPM -g $GAIN$BIAS_SETTING -f $RXFREQ | tee >(./horus_demod -q -m RTTY --fsk_lower=$RTTY_LOWER --fsk_upper=$RTTY_UPPER $STATS_SETTING - - 2> >(python ./webui/fskstatsudp.py -s $RTTY_CALLSIGN -p $RTTY_SUMMARY_PORT --rate $STATS_RATE) | python horusbinary.py --rtty --stdin --summary $RTTY_SUMMARY_PORT --ozimux $RTTY_OZIMUX_PORT --debuglog rtty_decode.log) >(./horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> >(python ./webui/fskstatsudp.py -s $MFSK_CALLSIGN -p $MFSK_SUMMARY_PORT --rate $STATS_RATE)| python horusbinary.py --stdin --summary $MFSK_SUMMARY_PORT --ozimux $MFSK_OZIMUX_PORT --debuglog fsk_decode.log) > /dev/null
