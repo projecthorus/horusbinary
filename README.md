@@ -59,7 +59,7 @@ To be able to use the horusbinary.py Python script, you will need a Python inter
 ### Linux / OSX
 Under Linux (Ubuntu/Debian) install the required packages using:
 ```
-$ sudo apt-get install git python-crcmod python-requests python-pip sox
+$ sudo apt-get install git python-crcmod python-requests python-pip sox bc
 ```
 Under OSX, Macports or Homebrew should be able to provide the above packages.
 
@@ -167,3 +167,10 @@ On some platforms nc requires the listen port to be specified with the -p argume
 ```
 $ nc -l -u -p 7355 localhost | ./horus_demod -m binary - - | python horusbinary.py --stdin
 ```
+
+### Headless Demodulation of 4FSK and RTTY Simulataneously
+The [start_dual_rtty_mfsk_rx.sh](https://github.com/projecthorus/horusbinary/blob/master/start_dual_rtty_mfsk_rx.sh) script is specifically designed for simultaneous reception of the 4FSK and RTTY payloads that are commonly flown on Project Horus launches. It uses careful selection of FSK demodulator frequency estimator settings to run two demodulators in parallel - one decoding 4FSK, one decoding RTTY. 
+This makes the assumption that the RTTY payload is on 434.650 MHz, and the 4FSK payload is on 434.660 MHz. 
+
+Check the various options throughout the script for your use-case. In particular, you may want to adjust the gain settings.
+By default this script will output telemetry for both 4FSK and RTTY payloads in horus_udp format on port 55672. This can be received and plotted using chasemapper (when configured correctly).

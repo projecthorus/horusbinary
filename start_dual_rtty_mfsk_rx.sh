@@ -16,9 +16,13 @@ RXFREQ=434645000
 # preamplifier, you may want to experiment with different gain settings to optimize
 # your receiver setup.
 # You can find what gain range is valid for your RTLSDR by running: rtl_test
-GAIN=30
+GAIN=0
 
 # Bias Tee Enable (1) or Disable (0)
+# NOTE: This uses the -T bias-tee option which is only available on recent versions
+# of rtl-sdr. Check if your version has this option by running rtl_fm --help and looking
+# for it in the option list.
+# If not, you may need to uninstall that version, and then compile from source: https://github.com/osmocom/rtl-sdr
 BIAS=0
 
 # Receiver PPM offset
@@ -67,6 +71,15 @@ if [ "$BIAS" = "1" ]; then
 	BIAS_SETTING=" -T"
 fi
 
+GAIN_SETTING=""
+if [ "$GAIN" = "0" ]; then
+	echo "Using AGC."
+	GAIN_SETTING=""
+else
+	echo "Using Manual Gain"
+	GAIN_SETTING=" -g $GAIN"
+fi
+
 STATS_SETTING=""
 
 if [ "$STATS_OUTPUT" = "1" ]; then
@@ -75,4 +88,4 @@ if [ "$STATS_OUTPUT" = "1" ]; then
 fi
 
 # Start the receive chain.
-rtl_fm -M raw -F9 -s 48000 -p $PPM -g $GAIN$BIAS_SETTING -f $RXFREQ | tee >(./horus_demod -q -m RTTY --fsk_lower=$RTTY_LOWER --fsk_upper=$RTTY_UPPER $STATS_SETTING - - 2> >(python ./webui/fskstatsudp.py -s $RTTY_CALLSIGN -p $RTTY_SUMMARY_PORT --rate $STATS_RATE) | python horusbinary.py --rtty --stdin --summary $RTTY_SUMMARY_PORT --ozimux $RTTY_OZIMUX_PORT --debuglog rtty_decode.log) >(./horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> >(python ./webui/fskstatsudp.py -s $MFSK_CALLSIGN -p $MFSK_SUMMARY_PORT --rate $STATS_RATE)| python horusbinary.py --stdin --summary $MFSK_SUMMARY_PORT --ozimux $MFSK_OZIMUX_PORT --debuglog fsk_decode.log) > /dev/null
+rtl_fm -M raw -F9 -s 48000 -p $PPM $GAIN_SETTING$BIAS_SETTING -f $RXFREQ | tee >(./horus_demod -q -m RTTY --fsk_lower=$RTTY_LOWER --fsk_upper=$RTTY_UPPER $STATS_SETTING - - 2> >(python ./webui/fskstatsudp.py -s $RTTY_CALLSIGN -p $RTTY_SUMMARY_PORT --rate $STATS_RATE) | python horusbinary.py --rtty --stdin --summary $RTTY_SUMMARY_PORT --ozimux $RTTY_OZIMUX_PORT --debuglog rtty_decode.log) >(./horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> >(python ./webui/fskstatsudp.py -s $MFSK_CALLSIGN -p $MFSK_SUMMARY_PORT --rate $STATS_RATE)| python horusbinary.py --stdin --summary $MFSK_SUMMARY_PORT --ozimux $MFSK_OZIMUX_PORT --debuglog fsk_decode.log) > /dev/null

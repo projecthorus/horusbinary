@@ -45,6 +45,15 @@ if [ "$BIAS" = "1" ]; then
 	BIAS_SETTING=" -T"
 fi
 
+GAIN_SETTING=""
+if [ "$GAIN" = "0" ]; then
+	echo "Using AGC."
+	GAIN_SETTING=""
+else
+	echo "Using Manual Gain"
+	GAIN_SETTING=" -g $GAIN"
+fi
+
 STATS_SETTING=""
 
 if [ "$STATS_OUTPUT" = "1" ]; then
@@ -53,4 +62,4 @@ if [ "$STATS_OUTPUT" = "1" ]; then
 fi
 
 # Start the receive chain.
-rtl_fm -M raw -F9 -s 48000 -p $PPM -g $GAIN$BIAS_SETTING -f $SDR_RX_FREQ | ./horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> stats.txt| python horusbinary.py --stdin $@
+rtl_fm -M raw -F9 -s 48000 -p $PPM $GAIN_SETTING$BIAS_SETTING -f $SDR_RX_FREQ | ./horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> stats.txt| python horusbinary.py --stdin $@
