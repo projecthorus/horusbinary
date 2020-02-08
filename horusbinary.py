@@ -545,6 +545,12 @@ def decode_horus_binary(data, payload_list = {}):
     ''' Decode a string containing a horus binary packet, and produce a UKHAS ASCII string '''
 
     horus_format_struct = "<BHBBBffHBBbBH"
+    horus_format_len = 22
+
+    if len(data) != horus_format_len:
+        logging.debug("Input sentence not of correct length.")
+        return (None, None)
+
     # Attempt to unpack the input data into a struct.
     try:
         unpacked = struct.unpack(horus_format_struct, data)
@@ -900,7 +906,8 @@ def main():
             if data.startswith('$$'):
                 handle_ukhas(data)
             else:
-                handle_binary(data, payload_list)
+                if len(data) > 0:
+                    handle_binary(data, payload_list)
 
     except KeyboardInterrupt:
         logging.info("Caught CTRL-C, exiting.")

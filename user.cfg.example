@@ -26,7 +26,8 @@ antenna_comment = Your Antenna Description Here
 
 [freedv]
 # Listen for UDP messages from FreeDV on this port.
-udp_port = 55690
+# 2020-02-08 - Switch to using the FreeDV default port of 3000.
+udp_port = 3000
 
 [ozimux]
 # OziMux UDP Broadcast port. (defaults to the FldigiBridge input socket on OziMux)

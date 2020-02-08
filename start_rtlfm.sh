@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-echo "Launching horus_demod with rtl_fm in raw IQ mode"
+#
+#	Horus Binary RTLSDR Helper Script
+#
+#   Uses rtl_fm to receive a chunk of spectrum, and passes it into horus_demod.
+#
 
 # Receive *centre* frequency, in Hz
 # Note: The SDR will be tuned to RXBANDWIDTH/2 below this frequency.
-RXFREQ=434650000
-
+RXFREQ=434660000
 
 # Receiver Gain. Set this to 0 to use automatic gain control, otherwise if running a
 # preamplifier, you may want to experiment with different gain settings to optimize
@@ -27,6 +30,24 @@ RXBANDWIDTH=10000
 # If enabled, modem statistics are written to stats.txt, and can be observed
 # during decoding by running: tail -f stats.txt | python fskstats.py
 STATS_OUTPUT=0
+
+
+# Check that the horus_demod decoder has been compiled.
+FILE=./src/horus_demod
+if [ -f "$FILE" ]; then
+    echo "Found horus_demod."
+else 
+    echo "ERROR - $FILE does not exist - have you compiled it yet?"
+	exit 1
+fi
+
+# Check that bc is available on the system path.
+if echo "1+1" | bc > /dev/null; then
+    echo "Found bc."
+else 
+    echo "ERROR - Cannot find bc - Did you install it?"
+	exit 1
+fi
 
 # Calculate the SDR tuning frequency
 SDR_RX_FREQ=$(echo "$RXFREQ - $RXBANDWIDTH/2 - 1000" | bc)
@@ -62,4 +83,4 @@ if [ "$STATS_OUTPUT" = "1" ]; then
 fi
 
 # Start the receive chain.
-rtl_fm -M raw -F9 -s 48000 -p $PPM $GAIN_SETTING$BIAS_SETTING -f $SDR_RX_FREQ | ./horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> stats.txt| python horusbinary.py --stdin $@
+rtl_fm -M raw -F9 -s 48000 -p $PPM $GAIN_SETTING$BIAS_SETTING -f $SDR_RX_FREQ | ./src/horus_demod -q -m binary --fsk_lower=$FSK_LOWER --fsk_upper=$FSK_UPPER $STATS_SETTING - -  2> stats.txt| python horusbinary.py --stdin $@
