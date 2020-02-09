@@ -803,7 +803,7 @@ def main():
         payload_list = read_payload_list(args.payload_list)
     else:
         if grab_latest_payload_id_list(url=PAYLOAD_ID_LIST_URL):
-            logging.info("Payload ID list updated successfuly.")
+            logging.info("Payload ID list updated successfully.")
         else:
             logging.error("Could not update payload ID list, using local copy.")
 

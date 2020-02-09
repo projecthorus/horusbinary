@@ -13,7 +13,7 @@ callsign = YOUR_CALL_HERE
 station_lat = 0.0
 station_lon = 0.0
 # Radio/Antenna descriptions.
-# An optional short decription of your radio/antenna setup.
+# An optional short description of your radio/antenna setup.
 radio_comment = Your Radio Description Here
 antenna_comment = Your Antenna Description Here
 
@@ -32,5 +32,6 @@ udp_port = 3000
 [ozimux]
 # OziMux UDP Broadcast port. (defaults to the FldigiBridge input socket on OziMux)
 ozimux_port = 55683
-# Payload Summary output port, which can be used to feed data into ChaseMapper
+# Horus-UDP Message Output port. This is the preferred output for use with mapping systems
+# such as ChaseMapper.
 summary_port = 55672

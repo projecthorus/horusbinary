@@ -15,6 +15,7 @@ RXFREQ=434645000
 # Where in the passband we expect to find the RTTY signal, in Hz.
 # For Horus flights, this is on 434.650 MHz, so with a SDR frequency of 434.645 MHz,
 # we expect to find the RTTY signal at approx +5 kHz.
+# Note that the signal must be located ABOVE the centre frequency of the receiver.
 RTTY_SIGNAL=5000
 
 # Where in the receiver passband we expect to find the Horus Binary (MFSK) signal, in Hz.
