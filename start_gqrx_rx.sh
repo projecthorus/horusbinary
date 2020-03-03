@@ -18,8 +18,8 @@ fi
 
 if [[ $OSTYPE == darwin* ]]; then
     # OSX's netcat utility uses a different, incompatible syntax. Sigh.
-    nc -l -u localhost 7355 | ./src/horus_demod -m binary --fsk_lower=100 --fsk_upper=10000 - - | python horusbinary.py --stdin $@
+    nc -l -u localhost 7355 | ./src/horus_demod -m binary --fsk_lower=100 --fsk_upper=20000 - - | python horusbinary.py --stdin $@
 else
     # Start up!
-    nc -l -u -p 7355 localhost | ./src/horus_demod -m binary --fsk_lower=100 --fsk_upper=10000 - - | python horusbinary.py --stdin $@
+    nc -l -u -p 7355 localhost | ./src/horus_demod -m binary --fsk_lower=100 --fsk_upper=20000 - - | python horusbinary.py --stdin $@
 fi
