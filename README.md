@@ -17,7 +17,7 @@ Along with the modem are some helper scripts written by [Mark Jessop](https://rf
 ## Why use it?
 A HAB telemetry payload transmitting Horus Binary format telemetry can provide position updates approximately every 3 seconds. Using just 10mW transmit power on the 434 MHz [ISM](https://en.wikipedia.org/wiki/ISM_band)/[LIPD](https://www.acma.gov.au/licences/low-interference-potential-devices-lipd-class-licence)/70cm band, this modem can offer ~7dB improved demodulation performance compared to [RTTY](https://en.wikipedia.org/wiki/Radioteletype) running at the same baud rate. There is some further information on the modem performance [available here](https://www.rowetel.com/?p=5906).
 
-This means potentially longer decoding range, both in the air, and on the ground. The modem uses rate r=1/2 [Reed-Solomon](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) forward-error correction, so you'll have far less issues with failed packet decodes.
+This means potentially longer decoding range, both in the air, and on the ground. The modem uses rate r=1/2 [Golay](https://en.wikipedia.org/wiki/Binary_Golay_code) forward-error correction, so you'll have far less issues with failed packet decodes.
 
 The ye-olde RTTY transmitters used by many high-altitude balloon flights encode telemetry as ASCII text. This is very wasteful compared to just sending data as raw binary types. RTTY also uses [RS232](https://en.wikipedia.org/wiki/RS-232) framing, which means even more overhead. Horus Binary uses a binary packet format, which gets the basic tracking data across in just 22 bytes. Some information on the packet and framing format is [available here](https://github.com/projecthorus/horusbinary/wiki/2---Modem-Details).
 
