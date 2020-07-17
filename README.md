@@ -5,6 +5,8 @@ Above: Spectrogram of the Horus Binary modem signal.
 
 Please refer to the [wiki pages](https://github.com/projecthorus/horusbinary/wiki) for the latest version of this documentation.
 
+**IMPORTANT NOTE: This repository is being transitioned across to [horusdemodlib](https://github.com/projecthorus/horusdemodlib). The decoders in this repository will remain compatible with the decoders in horusdemodlib, at least for the Horus Binary v1 mode.**
+
 ## What is it?
 This repository contains a demodulator and helper scripts for the 'Horus Binary' Multiple-Frequency-Shift-Keying (MFSK) modem, which was specifically designed to provide high reliability telemetry from High-Altitude Balloon (HAB) payloads. 
 
